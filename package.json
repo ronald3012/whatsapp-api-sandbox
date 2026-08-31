@@ -1,0 +1,30 @@
+{
+  "name": "wa-sandbox",
+  "version": "0.1.0",
+  "description": "Un WhatsApp Cloud API de mentira: mismos endpoints, mismas respuestas y webhooks firmados, para ensayar tu plataforma sin escribirle a nadie real.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "pruebas": "node pruebas/aislamiento.mjs && node pruebas/telefonos.mjs && node pruebas/limites.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "express": "^4.21.2",
+    "multer": "^2.3.0"
+  },
+  "license": "MIT",
+  "keywords": [
+    "whatsapp",
+    "whatsapp-cloud-api",
+    "meta",
+    "sandbox",
+    "mock",
+    "testing",
+    "webhooks"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}

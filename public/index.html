@@ -1,0 +1,1723 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ensayo de WhatsApp</title>
+<style>
+  /* Con la cara de WhatsApp Web, a propósito.
+     Quien abre esto quiere probar su agente antes de soltarlo con clientes de
+     verdad, y ya sabe usar WhatsApp: copiando la interfaz que ya conoce, no
+     tiene que aprender nada. Lo de desarrollador —sobres, códigos de error,
+     credenciales— vive detrás del modo avanzado, apagado por defecto. */
+  :root{
+    --verde:#00a884; --verde-osc:#008069; --burbuja:#d9fdd3; --panel:#f0f2f5;
+    --superficie:#fff;        /* listas, diálogos, el lienzo de fondo */
+    --burbuja-otro:#fff;      /* la burbuja de quien te escribe */
+    --dia-bg:#fff;            /* la píldora de la fecha */
+    --aviso-bg:#ffeecd; --aviso-tx:#54656f;
+    --entrada:#fff;           /* las cajas donde se escribe */
+    --franja:#008069;         /* la franja de arriba */
+    --sombra:rgba(11,20,26,.13);
+    --velo:rgba(0,0,0,.05);   /* los fondos dentro de una burbuja */
+    --fondo-chat:#efeae2; --linea:#e9edef; --linea2:#d1d7db;
+    --costura:#d1d7db;        /* la línea entre superficies que se tocan */
+    --tip-bg:#111b21; --tip-tx:#fff;
+    --texto:#111b21; --tenue:#667781; --debil:#8696a0; --tick:#53bdeb;
+    --malo:#e5533d; --ambar:#b98600;
+    --fil-bg:#d9fdd3; --fil-tx:#017561;
+    --patron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23000' stroke-opacity='.045' stroke-width='1.6'%3E%3Ccircle cx='34' cy='30' r='11'/%3E%3Cpath d='M84 22h22v18H84z'/%3E%3Cpath d='M150 18l10 18h-20z'/%3E%3Cpath d='M200 20c8 0 14 6 14 13s-6 13-14 13h-3l-6 6v-6c-5-2-8-7-8-13 0-7 6-13 17-13z'/%3E%3Cpath d='M28 92c0-7 5-12 12-12s12 5 12 12-5 12-12 12h-2l-6 5v-5c-4-2-4-7-4-12z'/%3E%3Ccircle cx='104' cy='96' r='10'/%3E%3Cpath d='M148 86h26v22h-26z'/%3E%3Cpath d='M206 88l12 20h-24z'/%3E%3Cpath d='M30 158h24v20H30z'/%3E%3Cpath d='M96 152l12 22H84z'/%3E%3Ccircle cx='160' cy='164' r='12'/%3E%3Cpath d='M204 154c9 0 15 6 15 14s-6 14-15 14h-3l-6 6v-6c-4-3-6-8-6-14 0-8 6-14 15-14z'/%3E%3Ccircle cx='40' cy='224' r='10'/%3E%3Cpath d='M92 216h24v18H92z'/%3E%3Cpath d='M158 214l11 20h-22z'/%3E%3Cpath d='M200 220h26v16h-26z'/%3E%3C/g%3E%3C/svg%3E");
+    --f:"Segoe UI",Helvetica,-apple-system,system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  }
+
+  /* El tema oscuro de WhatsApp Web.
+     Tres estados, no dos: elegir claro u oscuro deja una marca en la raíz, pero
+     lo normal —«el del sistema»— no deja ninguna, y ahí solo manda
+     `prefers-color-scheme`. Por eso el media query va condicionado a que NO se
+     haya pedido claro a mano, y el bloque de `[data-theme="dark"]` se repite
+     para que el interruptor gane también en el otro sentido. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+    --fil-bg:#103529; --fil-tx:#7ee0c0;
+    --burbuja:#005c4b;            /* lo tuyo, verde profundo */
+    --panel:#202c33;
+    --superficie:#111b21;
+    --burbuja-otro:#202c33;
+    --dia-bg:#182229;
+    --aviso-bg:#182229; --aviso-tx:#ffd279;
+    --entrada:#2a3942;
+    --franja:#16222a;
+    --sombra:rgba(0,0,0,.35);
+    --velo:rgba(255,255,255,.06);
+    --fondo-chat:#0b141a;
+    --linea:#222d34; --linea2:#2a3942; --costura:#0a1014; --tip-bg:#e9edef; --tip-tx:#111b21;
+    --texto:#e9edef; --tenue:#8696a0; --debil:#667781;
+    --malo:#f15c6d; --ambar:#ffd279;
+    --patron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23fff' stroke-opacity='.05' stroke-width='1.6'%3E%3Ccircle cx='34' cy='30' r='11'/%3E%3Cpath d='M84 22h22v18H84z'/%3E%3Cpath d='M150 18l10 18h-20z'/%3E%3Cpath d='M200 20c8 0 14 6 14 13s-6 13-14 13h-3l-6 6v-6c-5-2-8-7-8-13 0-7 6-13 17-13z'/%3E%3Cpath d='M28 92c0-7 5-12 12-12s12 5 12 12-5 12-12 12h-2l-6 5v-5c-4-2-4-7-4-12z'/%3E%3Ccircle cx='104' cy='96' r='10'/%3E%3Cpath d='M148 86h26v22h-26z'/%3E%3Cpath d='M206 88l12 20h-24z'/%3E%3Cpath d='M30 158h24v20H30z'/%3E%3Cpath d='M96 152l12 22H84z'/%3E%3Ccircle cx='160' cy='164' r='12'/%3E%3Cpath d='M204 154c9 0 15 6 15 14s-6 14-15 14h-3l-6 6v-6c-4-3-6-8-6-14 0-8 6-14 15-14z'/%3E%3Ccircle cx='40' cy='224' r='10'/%3E%3Cpath d='M92 216h24v18H92z'/%3E%3Cpath d='M158 214l11 20h-22z'/%3E%3Cpath d='M200 220h26v16h-26z'/%3E%3C/g%3E%3C/svg%3E");
+    }
+  }
+  :root[data-theme="dark"] {
+    --fil-bg:#103529; --fil-tx:#7ee0c0;
+    --burbuja:#005c4b;            /* lo tuyo, verde profundo */
+    --panel:#202c33;
+    --superficie:#111b21;
+    --burbuja-otro:#202c33;
+    --dia-bg:#182229;
+    --aviso-bg:#182229; --aviso-tx:#ffd279;
+    --entrada:#2a3942;
+    --franja:#16222a;
+    --sombra:rgba(0,0,0,.35);
+    --velo:rgba(255,255,255,.06);
+    --fondo-chat:#0b141a;
+    --linea:#222d34; --linea2:#2a3942; --costura:#0a1014; --tip-bg:#e9edef; --tip-tx:#111b21;
+    --texto:#e9edef; --tenue:#8696a0; --debil:#667781;
+    --malo:#f15c6d; --ambar:#ffd279;
+    --patron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23fff' stroke-opacity='.05' stroke-width='1.6'%3E%3Ccircle cx='34' cy='30' r='11'/%3E%3Cpath d='M84 22h22v18H84z'/%3E%3Cpath d='M150 18l10 18h-20z'/%3E%3Cpath d='M200 20c8 0 14 6 14 13s-6 13-14 13h-3l-6 6v-6c-5-2-8-7-8-13 0-7 6-13 17-13z'/%3E%3Cpath d='M28 92c0-7 5-12 12-12s12 5 12 12-5 12-12 12h-2l-6 5v-5c-4-2-4-7-4-12z'/%3E%3Ccircle cx='104' cy='96' r='10'/%3E%3Cpath d='M148 86h26v22h-26z'/%3E%3Cpath d='M206 88l12 20h-24z'/%3E%3Cpath d='M30 158h24v20H30z'/%3E%3Cpath d='M96 152l12 22H84z'/%3E%3Ccircle cx='160' cy='164' r='12'/%3E%3Cpath d='M204 154c9 0 15 6 15 14s-6 14-15 14h-3l-6 6v-6c-4-3-6-8-6-14 0-8 6-14 15-14z'/%3E%3Ccircle cx='40' cy='224' r='10'/%3E%3Cpath d='M92 216h24v18H92z'/%3E%3Cpath d='M158 214l11 20h-22z'/%3E%3Cpath d='M200 220h26v16h-26z'/%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--panel);color:var(--texto);font:15px/1.5 var(--f);
+       height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  button{font:inherit;cursor:pointer;border:0;background:none;color:inherit;padding:0}
+  .btn{border-radius:22px;background:var(--verde-osc);color:#fff;padding:9px 20px;font-size:14.5px;font-weight:500}
+  .btn:hover{background:#017561}
+  .btn.gris{background:var(--panel);color:var(--texto);border:1px solid var(--linea2)}
+  .btn.gris:hover{filter:brightness(.95)}
+  .btn.mini{padding:6px 13px;font-size:13px}
+  /* Los globitos, dibujados aquí: el del navegador tarda, se ve distinto en
+     cada sistema y no se le puede dar el estilo del producto. */
+  [data-tip]{position:relative}
+  [data-tip]::after{content:attr(data-tip);position:absolute;top:calc(100% + 7px);left:50%;
+    transform:translateX(-50%) translateY(-3px);background:var(--tip-bg);color:var(--tip-tx);
+    font-size:12px;line-height:1.35;white-space:nowrap;padding:5px 9px;border-radius:6px;
+    pointer-events:none;opacity:0;transition:opacity .12s,transform .12s;z-index:60;
+    box-shadow:0 2px 10px rgba(0,0,0,.22);font-weight:400}
+  [data-tip]:hover::after{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* Con un diálogo delante, los globitos de detrás sobran. */
+  body:has(dialog[open]) [data-tip]::after{display:none}
+  /* Pegados al borde derecho, el globito se saldría de la pantalla. */
+  .der [data-tip]::after, .barra .der [data-tip]::after{left:auto;right:0;transform:translateY(-3px)}
+  .der [data-tip]:hover::after, .barra .der [data-tip]:hover::after{transform:translateY(0)}
+  /* Los que viven abajo del todo lo enseñan por arriba. */
+  .riel [data-tip]::after{top:auto;bottom:50%;left:calc(100% + 9px);transform:translateY(50%)}
+  .riel [data-tip]:hover::after{transform:translateY(50%)}
+  .btn.rojo{background:var(--malo)}
+  .btn.rojo:hover{filter:brightness(.92)}
+  .ico{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--tenue);font-size:17px}
+  .ico:hover{background:var(--velo)}
+  input,select{font:inherit;background:var(--entrada);color:var(--texto);
+    border:1px solid var(--linea2);border-radius:8px;padding:10px 13px;width:100%}
+  input:focus,select:focus{outline:2px solid var(--verde);outline-offset:-1px}
+  ::-webkit-scrollbar{width:7px}::-webkit-scrollbar-thumb{background:#c9d1d6;border-radius:7px}
+  code{font-family:var(--mono);font-size:.9em;background:var(--panel);padding:1px 5px;border-radius:4px}
+
+  /* La franja de arriba: el negocio al que le estás escribiendo y si le llega */
+  .franja{display:flex;align-items:center;gap:12px;padding:0 16px;height:48px;
+          background:var(--franja);color:#fff;flex-shrink:0;font-size:13.5px;
+          border-bottom:1px solid var(--costura)}
+  .franja .logo{font-weight:600;letter-spacing:-.01em}
+  .franja .neg{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.15);
+               border-radius:20px;padding:4px 12px 4px 5px;cursor:pointer}
+  .franja .neg:hover{background:rgba(255,255,255,.24)}
+  .franja .neg .av{width:24px;height:24px;border-radius:50%;background:#fff;color:var(--verde-osc);
+                   display:grid;place-items:center;font-weight:700;font-size:11px}
+  .franja .der{margin-left:auto;display:flex;align-items:center;gap:14px}
+  .punto{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.45);flex-shrink:0}
+  .punto.ok{background:#7ee787}.punto.mal{background:#ff8f80}
+  /* El interruptor: una casilla del sistema se dibuja distinta en cada máquina
+     y desentona con todo lo demás. Este se pinta aquí y es igual en todas. */
+  .sw{display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;font-size:13px}
+  .sw input{position:absolute;opacity:0;width:0;height:0}
+  .sw .via{width:34px;height:19px;border-radius:19px;background:rgba(255,255,255,.28);
+           position:relative;transition:background .18s;flex-shrink:0}
+  .sw .via::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;
+                  border-radius:50%;background:#fff;transition:transform .18s;
+                  box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .sw input:checked + .via{background:var(--verde)}
+  .sw input:checked + .via::after{transform:translateX(15px)}
+  .sw input:focus-visible + .via{outline:2px solid #fff;outline-offset:2px}
+
+  /* El riel de iconos, como el de WhatsApp Web */
+  .riel{width:62px;background:var(--panel);border-right:1px solid var(--costura);
+        display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px}
+  .ric{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:var(--tenue)}
+  .ric:hover{background:var(--velo)}
+  .ric.on{background:var(--velo);color:var(--texto)}
+  .riel .yo{width:36px;height:36px;border-radius:50%;background:var(--verde);color:#fff;
+            display:grid;place-items:center;font-weight:600;font-size:14px;margin-top:6px;cursor:pointer}
+  /* Blanca como el resto de la columna: antes era gris y la esquina donde se
+     cruzan franja, riel y lista parecía un solo bloque sin costuras. */
+  .lista .cab{height:60px;background:var(--superficie);display:flex;align-items:center;
+              justify-content:space-between;padding:0 16px;flex-shrink:0}
+  .lista .cab .tit{font-size:21px;font-weight:600}
+  .filtros{display:flex;gap:8px;padding:0 12px 10px;background:var(--superficie);flex-shrink:0}
+  .fil{padding:5px 13px;border-radius:20px;font-size:13.5px;background:var(--velo);color:var(--tenue)}
+  /* El filtro activo, con su propio token: el verde claro no se lee en oscuro. */
+  .fil.on{background:var(--fil-bg);color:var(--fil-tx)}
+
+  main{flex:1;display:grid;grid-template-columns:62px 380px 1fr 0;min-height:0;
+       background:var(--superficie);transition:grid-template-columns .2s}
+  main.avanzado{grid-template-columns:62px 320px 1fr 330px}
+
+  /* Lista de chats, como la de WhatsApp Web */
+  .lista{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--linea)}
+  .lista .cab .yo{width:40px;height:40px;border-radius:50%;background:var(--verde);color:#fff;
+                  display:grid;place-items:center;font-weight:600;font-size:15px}
+  .lista .cab .n{font-weight:500;font-size:15px}
+  .lista .cab .t{font-size:12.5px;color:var(--tenue)}
+  .buscar{padding:2px 12px 7px;background:var(--superficie);border-bottom:1px solid var(--linea);flex-shrink:0;display:flex;gap:8px}
+  .buscar input{background:var(--panel);border:0;border-radius:8px;padding:8px 14px;font-size:14px}
+  .chats{flex:1;overflow-y:auto}
+  .chat{display:flex;gap:13px;align-items:center;padding:11px 16px;cursor:pointer;border-bottom:1px solid var(--linea)}
+  .chat:hover{background:var(--velo)}
+  .chat.sel{background:var(--panel)}
+  .chat .av{width:47px;height:47px;border-radius:50%;background:#dfe5e7;display:grid;place-items:center;
+            font-weight:500;font-size:16px;color:var(--tenue);flex-shrink:0;overflow:hidden}
+  .chat .av img, .barra .av img{width:100%;height:100%;object-fit:cover;display:block}
+  .chat .cu{min-width:0;flex:1}
+  .chat .l1{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+  .chat .n{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chat .h{font-size:12px;color:var(--tenue);flex-shrink:0}
+  .chat .l2{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:2px}
+  .chat .u{font-size:13.5px;color:var(--tenue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .etq{font-size:11px;padding:1px 8px;border-radius:20px;background:var(--panel);color:var(--tenue);flex-shrink:0}
+  /* La foto, anclada al círculo y no al alto natural de la imagen.
+     Con width/height al 100% dentro del grid, una foto vertical salía 47×59 en
+     un avatar de 47×47 y desbordaba por abajo. Absoluta sobre el círculo (que
+     además recorta con overflow), el tamaño lo manda el avatar siempre. */
+  .av,.yo{position:relative;overflow:hidden}
+  .av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%}
+  .menu{position:absolute;top:52px;right:14px;background:var(--superficie);border-radius:8px;
+        box-shadow:0 4px 20px rgba(11,20,26,.26);min-width:210px;z-index:30;padding:6px 0;border:1px solid var(--linea)}
+  .menu button{display:block;width:100%;text-align:left;padding:11px 18px;font-size:14px}
+  .menu button:hover{background:var(--velo)}
+  .menu button.rojo{color:var(--malo)}
+  /* El menú de negocios: fila con avatar, nombre, número y su papelera. */
+  #menuNegocios{position:fixed;min-width:262px;padding:6px 0;color:var(--texto)}
+  .fila-neg{display:flex;align-items:center}
+  .fila-neg > button:first-child{display:flex;align-items:center;gap:10px;flex:1;padding:9px 14px;text-align:left}
+  .fila-neg.actual{background:var(--velo)}
+  .av-mini{width:30px;height:30px;border-radius:50%;background:var(--verde);color:#fff;
+           display:grid;place-items:center;font-size:12px;font-weight:600;flex-shrink:0}
+  .fila-neg .txt{display:flex;flex-direction:column;line-height:1.3;overflow:hidden}
+  .fila-neg .txt b{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fila-neg .txt i{font-size:12px;color:var(--tenue);font-style:normal}
+  .fila-neg .tic{margin-left:auto;color:var(--verde);display:flex}
+  .neg-admin{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid var(--linea);
+             border-radius:10px}
+  .neg-admin .txt{display:flex;flex-direction:column;line-height:1.3;flex:1;overflow:hidden}
+  .neg-admin .txt b{font-size:14px;font-weight:500}
+  .neg-admin .txt i{font-size:12px;color:var(--tenue);font-style:normal}
+  #menuNegocios .sep{height:1px;background:var(--linea);margin:6px 0}
+  #menuNegocios .pie-menu{display:flex;align-items:center;gap:9px;width:100%;padding:10px 14px;
+                          font-size:14px;color:var(--texto);text-align:left}
+  #menuNegocios .pie-menu:hover{background:var(--velo)}
+  #menuNegocios .pie-menu svg{color:var(--tenue)}
+  /* El globito de no leídos, como el de WhatsApp: verde, con el número. */
+  .globo{min-width:20px;height:20px;border-radius:20px;background:var(--verde);color:#fff;
+         display:grid;place-items:center;font-size:11.5px;font-weight:600;padding:0 6px;flex-shrink:0}
+  .chat.nuevo .n{font-weight:700}
+  .chat.nuevo .u{color:var(--texto);font-weight:500}
+  .hueco{color:var(--tenue);font-size:14px;text-align:center;padding:34px 22px;line-height:1.6}
+
+  /* La conversación */
+  .centro{display:flex;flex-direction:column;min-height:0;position:relative}
+  .barra{height:60px;display:flex;align-items:center;gap:13px;padding:0 16px;
+         background:var(--panel);flex-shrink:0;border-left:1px solid var(--linea);
+         border-bottom:1px solid var(--costura);position:relative;z-index:2;
+         box-shadow:0 1px 3px var(--sombra)}
+  .barra .av{width:40px;height:40px;border-radius:50%;background:#dfe5e7;display:grid;place-items:center;
+             font-size:15px;color:var(--tenue);overflow:hidden;flex-shrink:0}
+  .barra .quien{font-size:16px;line-height:1.25}
+  .barra .sub{font-size:13px;color:var(--tenue);line-height:1.25}
+  .barra .der{margin-left:auto;display:flex;gap:4px}
+  /* El fondo con el patrón de WhatsApp: garabatos muy tenues sobre beige. */
+  #hilo{flex:1;overflow-y:auto;padding:20px 5% 8px;display:flex;flex-direction:column;
+        background-color:var(--fondo-chat);
+        background-image:var(--patron)}
+  .aviso{align-self:center;background:var(--aviso-bg);color:var(--aviso-tx);font-size:12.5px;
+         padding:6px 14px;border-radius:8px;margin:4px 0 12px;text-align:center;max-width:600px;line-height:1.5}
+  .dia{align-self:center;background:var(--dia-bg);color:var(--tenue);font-size:12.5px;
+       padding:5px 13px;border-radius:8px;margin:8px 0 12px;box-shadow:0 1px 1px rgba(0,0,0,.08)}
+  .grupo{display:flex;flex-direction:column;gap:2px;margin-bottom:8px;max-width:100%}
+  .grupo.mio{align-items:flex-end}
+  .b{max-width:min(65%,520px);padding:7px 9px 8px 11px;border-radius:8px;font-size:14.6px;line-height:1.42;
+     /* Sin esto los saltos de línea se colapsan y una lista sale como un
+        párrafo corrido — que es justo lo que hacía. */
+     white-space:pre-wrap;
+     background:var(--burbuja-otro);box-shadow:0 1px .5px var(--sombra);position:relative;word-wrap:break-word}
+  .b.mio{background:var(--burbuja)}
+  /* La colita, como en WhatsApp: solo en el primero del grupo. */
+  .grupo:not(.mio) .b:first-child{border-top-left-radius:0}
+  .grupo:not(.mio) .b:first-child::before{content:'';position:absolute;top:0;left:-8px;width:8px;height:13px;
+    background:var(--burbuja-otro);clip-path:polygon(100% 0,0 0,100% 100%)}
+  .grupo.mio .b:first-child{border-top-right-radius:0}
+  .grupo.mio .b:first-child::before{content:'';position:absolute;top:0;right:-8px;width:8px;height:13px;
+    background:var(--burbuja);clip-path:polygon(0 0,100% 0,0 100%)}
+  .pie{float:right;margin:6px -2px -2px 10px;font-size:11px;color:var(--debil);
+       display:inline-flex;gap:3px;align-items:center;font-variant-numeric:tabular-nums}
+  .vv{display:inline-flex;align-items:center;gap:3px;font-size:12px}
+  .vv.leido{color:var(--tick)}
+  .vv.fallo{color:var(--malo);gap:4px;font-size:11px}
+  .b img{max-width:290px;min-width:130px;min-height:90px;object-fit:contain;border-radius:6px;
+         display:block;cursor:pointer;background:var(--velo);margin:-2px 0 2px}
+  .b .rota{display:flex;gap:9px;align-items:center;background:var(--velo);
+           border-radius:6px;padding:14px;color:var(--tenue);font-size:13px;min-width:190px}
+  .b audio{width:270px;height:38px;display:block;margin:2px 0}
+  .b video{max-width:290px;border-radius:6px;display:block}
+  .b .doc{display:flex;gap:11px;align-items:center;color:inherit;text-decoration:none;
+          background:var(--velo);border-radius:6px;padding:12px 14px;min-width:230px}
+  .b .doc,.b .carro,.b .rota{white-space:normal}
+  .b code{font-family:var(--mono);font-size:.92em;background:var(--velo);padding:1px 4px;border-radius:3px}
+  .b a{color:inherit;text-decoration:underline}
+  /* Una plantilla en la burbuja, con sus partes como en el teléfono. */
+  .b .pl-cab{font-weight:600;margin-bottom:4px}
+  .b .pl-pie{font-size:12.5px;color:var(--tenue);margin-top:5px}
+  .b .pl-botones{display:flex;flex-direction:column;margin:9px -11px -7px;
+                 border-top:1px solid var(--velo);white-space:normal}
+  .b .pl-botones span{padding:9px 6px;text-align:center;color:#0088cc;font-size:14px;
+                      border-bottom:1px solid var(--velo)}
+  .b .pl-botones span:last-child{border-bottom:0}
+  .b .carro{background:var(--velo);border-radius:6px;padding:10px 12px;min-width:250px;margin-bottom:2px}
+  .b .carro .enc{font-size:12px;color:var(--tenue);margin-bottom:8px;display:flex;justify-content:space-between}
+  .b .carro .l{display:flex;justify-content:space-between;gap:14px;font-size:13.5px;padding:2px 0;font-variant-numeric:tabular-nums}
+  .b .carro .sku{font-family:var(--mono);font-size:12px;color:var(--tenue)}
+  .escribiendo{padding:0 5% 6px;font-size:13px;color:var(--tenue);height:22px;flex-shrink:0;
+               background:var(--fondo-chat)}
+  .escribiendo i{font-style:normal;animation:late 1.2s infinite}
+  @keyframes late{0%,60%,100%{opacity:.3}30%{opacity:1}}
+  .redactar{background:var(--panel);padding:8px 16px;display:flex;gap:10px;align-items:center;flex-shrink:0;border-top:1px solid var(--costura)}
+  /* Crece con el texto hasta un tope, como el de WhatsApp Web. */
+  #texto{flex:1;border:0;border-radius:8px;padding:11px 14px;font-size:15px;font-family:inherit;
+         resize:none;max-height:130px;line-height:1.4;background:var(--entrada);color:var(--texto)}
+  .bienvenida{margin:auto;text-align:center;color:var(--tenue);max-width:420px;padding:34px}
+  .bienvenida h3{color:#41525d;font-size:29px;font-weight:300;margin:0 0 12px}
+  .bienvenida p{margin:0;font-size:14px;line-height:1.7}
+  .bienvenida .btn{margin-top:22px}
+  .centro.vacio{background:var(--superficie);border-left:1px solid var(--linea)}
+
+  /* El modo avanzado */
+  .lupa{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--linea);
+        background:var(--superficie);overflow:hidden}
+  main:not(.avanzado) .lupa{display:none}
+  .pest{display:flex;border-bottom:1px solid var(--linea);flex-shrink:0;background:var(--panel)}
+  .pest button{flex:1;padding:13px 0;font-size:12.5px;color:var(--tenue);border-bottom:2px solid transparent}
+  .pest button.on{color:var(--verde-osc);border-bottom-color:var(--verde);font-weight:500}
+  .hoja{flex:1;overflow-y:auto;padding:13px 14px;display:none;flex-direction:column;gap:11px}
+  .hoja.on{display:flex}
+  .tarj{border:1px solid var(--linea2);border-radius:9px;padding:11px 13px}
+  .tarj .t{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--tenue);
+           margin-bottom:9px;display:flex;justify-content:space-between;align-items:center}
+  /* Los botones de una tarjeta: mismo ancho, mismo alto, un solo hueco entre
+     ellos. Si la columna da de sí, se ponen en fila. */
+  /* Uno debajo de otro y a todo lo ancho: en una columna estrecha, dos
+     píldoras a medias parten el texto en dos líneas y quedan deformes. */
+  .tarj .acciones{display:flex;flex-direction:column;gap:8px}
+  .tarj .acciones .btn{width:100%;text-align:center;padding:9px 12px;white-space:nowrap}
+  .ev{display:flex;gap:9px;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--linea);font-size:13px}
+  .ev:last-child{border-bottom:0}
+  .ev .cod{font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:4px;flex-shrink:0}
+  .ev .cod.ok{color:var(--verde);background:var(--velo)}
+  .ev .cod.no{color:var(--malo);background:var(--velo)}
+  .ev .q{flex:1;color:var(--tenue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ev .h{color:var(--debil);font-size:11px;font-variant-numeric:tabular-nums}
+  pre.json{margin:0;font-family:var(--mono);font-size:11px;line-height:1.5;color:var(--tenue);
+           white-space:pre-wrap;word-break:break-word;max-height:230px;overflow:auto}
+  .op{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--linea2);
+      border-radius:9px;cursor:pointer;font-size:13.5px}
+  .op:hover{background:var(--velo)}
+  .op.on{border-color:var(--ambar);background:var(--velo)}
+  .op .d{font-size:12px;color:var(--tenue);line-height:1.4;margin-top:2px}
+  .chip{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ambar);
+        background:var(--velo);border:1px solid var(--linea2);padding:7px 11px;border-radius:8px}
+  .prod{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;
+        border-bottom:1px solid var(--linea);font-size:13.5px}
+  .prod:last-child{border-bottom:0}
+  .prod .sku{font-family:var(--mono);font-size:11px;color:var(--debil)}
+  .dato{display:flex;justify-content:space-between;gap:10px;align-items:center;
+        border:1px solid var(--linea2);border-radius:8px;padding:9px 11px}
+  .dato .k{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--tenue)}
+  .dato .v{font-family:var(--mono);font-size:11.5px;word-break:break-all;margin-top:3px}
+
+  dialog{background:var(--superficie);color:var(--texto);border:0;border-radius:6px;padding:0;
+         width:min(440px,92vw);box-shadow:0 17px 50px rgba(11,20,26,.25)}
+  dialog::backdrop{background:rgba(11,20,26,.5)}
+  dialog h3{margin:0;padding:18px 22px 14px;font-size:19px;font-weight:400}
+  dialog .in{padding:0 22px;display:flex;flex-direction:column;gap:15px}
+  dialog .out{padding:20px 22px;display:flex;justify-content:flex-end;gap:10px}
+  dialog p.ayuda{margin:0;font-size:13.5px;color:var(--tenue);line-height:1.6}
+  label.c{display:block;font-size:12.5px;color:var(--verde-osc);margin-bottom:5px}
+  label.chk{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--tenue);cursor:pointer;line-height:1.5}
+  label.chk input{width:auto;margin-top:3px;flex-shrink:0}
+  .lightbox{position:fixed;inset:0;background:rgba(11,20,26,.92);display:grid;place-items:center;z-index:99;cursor:zoom-out}
+  .lightbox img{max-width:92vw;max-height:92vh}
+
+  /* La puerta: sin clave no se pinta ni un chat. */
+  .puerta{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+    background:var(--panel)}
+  /* `hidden` pone display:none con prioridad de navegador, y el display:flex
+     de arriba se lo come: sin esta línea la puerta invisible sigue delante
+     tragándose los clics de toda la pantalla. */
+  .puerta[hidden]{display:none}
+  .puerta .tarjeta{width:min(400px,92vw);background:var(--superficie);border:1px solid var(--linea);
+    border-radius:14px;padding:34px 32px;box-shadow:0 8px 30px rgba(0,0,0,.12)}
+  .puerta h2{margin:0 0 6px;font-size:19px}
+  .puerta p{margin:0 0 18px;font-size:13.5px;opacity:.75}
+  .puerta input{width:100%;box-sizing:border-box;border:1px solid var(--linea2);border-radius:8px;
+    padding:10px 12px;font-size:14px;background:var(--entrada);color:var(--texto)}
+  .puerta .mal:empty{display:none}
+  .puerta .alterna{font-size:12.5px;color:var(--tenue);text-decoration:underline;background:none;border:none;cursor:pointer;padding:0}
+  /* Nada de anillo azul del sistema: WhatsApp no lo tiene. El foco de teclado
+     (Tab) sí se marca, en verde, que para eso existe. */
+  input:focus, textarea:focus, select:focus, button:focus{outline:none}
+  input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible{
+    outline:2px solid var(--verde); outline-offset:1px}
+  #texto:focus-visible{outline:none}
+  .puerta .mal{color:#d33;font-size:13px;min-height:18px;margin:8px 0 4px}
+  /* La administración: negocios y sus claves, nada de chats. */
+  .admin{position:fixed;inset:0;z-index:55;background:var(--panel);overflow:auto;display:none}
+  .admin.on{display:block}
+  .admin .caja{max-width:760px;margin:0 auto;padding:26px 18px 60px}
+  .admin .neg-fila{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--superficie);
+    border:1px solid var(--linea);border-radius:10px;margin-bottom:10px;flex-wrap:wrap}
+  .admin .neg-fila b{font-size:15px}
+  .admin .neg-fila .meta{font-size:12.5px;opacity:.65}
+  .admin .clave{font:12px/1.4 ui-monospace,Menlo,monospace;background:var(--panel);
+    border:1px solid var(--linea2);border-radius:6px;padding:4px 8px;cursor:pointer;user-select:all;
+    overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+
+<div class="franja">
+  <span class="logo">Ensayo de WhatsApp</span>
+  <!-- Siempre a la vista: es la tranquilidad que deja escribir sin miedo. -->
+  <span style="opacity:.75;font-size:12.5px">nada sale a un teléfono real</span>
+  <span class="neg" id="selNegocio">
+    <span class="av" id="negAv">—</span>
+    <span id="negNombre">Sin negocio</span>
+    <span id="negFlecha" style="display:flex"></span>
+  </span>
+  <!-- Antes el nombre ROTABA al pulsarlo: con tres negocios había que adivinar
+       cuántos eran y no había forma de borrar ninguno. -->
+  <div class="menu" id="menuNegocios" style="display:none;top:44px;left:auto;right:auto"></div>
+  <span class="der">
+    <span class="punto" id="punto"></span>
+    <span id="saludTexto">sin actividad</span>
+    <button class="ico" id="bTema" data-tip="Cambiar entre claro y oscuro"
+            style="color:#fff;width:32px;height:32px"></button>
+    <button class="ico" id="bSalir" data-tip="Salir (cambiar de clave)"
+            style="color:#fff;width:32px;height:32px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></button>
+    <label class="sw" data-tip="Enseña los sobres, los códigos de error y las credenciales">
+      <input type="checkbox" id="swAvanzado"><span class="via"></span>modo avanzado
+    </label>
+  </span>
+</div>
+
+<main id="cuadro">
+  <!-- El riel de iconos de WhatsApp Web. Aquí solo hay chats, así que el resto
+       no se inventa: van el tema, los ajustes y el negocio, que sí existen. -->
+  <nav class="riel">
+    <button class="ric on" data-tip="Chats" data-ic="chats"></button>
+    <span style="flex:1"></span>
+    <button class="ric" id="bTema2" data-tip="Claro u oscuro"></button>
+    <button class="ric" id="bAjustes" data-tip="Ajustes de tu negocio de ensayo" data-ic="ajustes"></button>
+    <span class="yo" id="negAv2" data-tip="Cambiar de negocio de ensayo">—</span>
+  </nav>
+  <aside class="lista">
+    <div class="cab">
+      <span class="tit">Chats</span>
+      <button class="ico" id="bNuevoCliente" data-tip="Nuevo cliente de prueba"></button>
+    </div>
+    <div class="buscar"><input id="filtro" placeholder="Buscar"></div>
+    <div class="filtros">
+      <button class="fil on" data-fil="todos">Todos</button>
+      <button class="fil" data-fil="sinleer">No leídos</button>
+      <button class="fil" data-fil="ocultos">Sin número</button>
+    </div>
+    <div class="chats" id="chats"></div>
+  </aside>
+
+  <section class="centro vacio" id="centro">
+    <div class="barra" id="barra" style="display:none">
+      <span class="av" id="chatAv"></span>
+      <span><span class="quien" id="chatNombre"></span><br><span class="sub" id="chatSub"></span></span>
+      <span class="der">
+        <button class="ico" id="bLeer" data-tip="El cliente abre el chat: tu agente ve el visto azul"></button>
+        <button class="ico" id="bBuscarChat" data-tip="Buscar en la conversación" data-ic="lupa"></button>
+        <button class="ico" id="bMasChat" data-tip="Más" data-ic="puntos"></button>
+        <div class="menu" id="menuChat" style="display:none">
+          <button id="mFoto">Ponerle foto</button>
+          <button id="mNombre">Cambiar el nombre</button>
+          <button id="mVaciar">Vaciar la conversación</button>
+          <button id="mBorrar" class="rojo">Eliminar el contacto</button>
+        </div>
+        <input type="file" id="fotoContacto" accept="image/*" hidden>
+      </span>
+    </div>
+    <div id="hilo">
+      <div class="bienvenida">
+        <h3>Ensaya tu agente</h3>
+        <p>Escríbele como si fueras un cliente y mira exactamente qué contestaría en
+           WhatsApp. Nada de esto sale a un teléfono real.</p>
+        <button class="btn" id="bEmpezar">Empezar</button>
+      </div>
+    </div>
+    <div class="escribiendo" id="escribiendo" style="display:none"></div>
+    <div class="redactar" id="redactar" style="display:none">
+      <input type="file" id="archivo" hidden>
+      <button class="ico" id="bAdjuntar" data-tip="Foto, audio, video o documento"></button>
+      <button class="ico" id="bCarrito" data-tip="Mandar un pedido del catálogo"></button>
+      <textarea id="texto" rows="1" placeholder="Escribe un mensaje  ·  Mayús+Enter para otra línea"></textarea>
+      <button class="ico" id="bEnviar" data-tip="Enviar" style="color:var(--verde-osc)"></button>
+    </div>
+  </section>
+
+  <aside class="lupa">
+    <div class="pest">
+      <button class="on" data-hoja="actividad">Actividad</button>
+      <button data-hoja="fallos">Fallos</button>
+      <button data-hoja="tienda">Tienda</button>
+      <button data-hoja="conectar">Conectar</button>
+    </div>
+    <div class="hoja on" id="h-actividad">
+      <div class="tarj"><div class="t">Último sobre entregado</div>
+        <pre class="json" id="ultimoSobre">Nada todavía.</pre></div>
+      <div class="tarj"><div class="t">Como haría Meta</div>
+        <!-- La columna es estrecha: dos botones sueltos se partían con anchos
+             distintos y un margen a mano. Apilados y a todo lo ancho, cuadran. -->
+        <div class="acciones">
+          <button class="btn gris mini" id="bReentregar" data-tip="Vuelve a mandar el último mensaje con el MISMO id, como cuando Meta reintenta">Reentregar el último</button>
+          <button class="btn gris mini" id="bVerificar" data-tip="El apretón de manos de verificación">Verificar webhook</button>
+        </div>
+        <div id="resMeta" style="font-size:12.5px;color:var(--tenue);margin-top:9px"></div></div>
+      <div class="tarj"><div class="t">Webhooks salidos</div><div id="eventos"></div></div>
+    </div>
+    <div class="hoja" id="h-fallos">
+      <div id="armados"></div>
+      <div class="op" data-clase="sin_entrega" data-cod="131051"><span class="ic" data-ic="alerta"></span>
+        <span><b>No entregado · 131051</b><div class="d">Se acepta el envío y el fallo llega después por webhook.</div></span></div>
+      <div class="op" data-clase="sin_entrega" data-cod="131060"><span class="ic" data-ic="alerta"></span>
+        <span><b>No entregado · 131060</b><div class="d">El cliente lo borró antes de que llegara.</div></span></div>
+      <div class="op" data-clase="ventana_24h" data-cod=""><span class="ic" data-ic="reloj"></span>
+        <span><b>Ventana de 24h vencida</b><div class="d">Rechazo inmediato con 131047: fuera de la ventana solo entran plantillas.</div></span></div>
+      <div class="op" data-clase="error_envio" data-cod="131026"><span class="ic" data-ic="equis"></span>
+        <span><b>No es número de WhatsApp · 131026</b><div class="d">Rechazo inmediato al enviar.</div></span></div>
+      <p class="ayuda" style="font-size:12.5px">Se arma para el <b>próximo</b> mensaje que tu agente
+        le mande a este cliente. Contra WhatsApp de verdad esto no se puede provocar.</p>
+    </div>
+    <div class="hoja" id="h-tienda">
+      <div class="tarj"><div class="t">Catálogo <button class="btn gris mini" id="bNuevoProd">+ producto</button></div>
+        <div id="productos"></div></div>
+      <div class="tarj"><div class="t">Plantillas · las apruebas tú</div><div id="plantillas"></div></div>
+      <div class="tarj"><div class="t">El número</div>
+        <button class="btn gris mini" id="bRegistrar">Registrar (paso del PIN)</button>
+        <span id="estRegistro" style="font-size:12.5px;color:var(--tenue);margin-left:8px"></span></div>
+    </div>
+    <div class="hoja" id="h-conectar">
+      <p class="ayuda">En tu plataforma, crea un canal de WhatsApp <b>API oficial</b> y copia estos
+        valores <b>en este mismo orden</b>. El último —el entorno— es el que hace que hable con este
+        ensayo y no con WhatsApp de verdad.</p>
+      <div id="credenciales" style="display:flex;flex-direction:column;gap:9px"></div>
+    </div>
+  </aside>
+</main>
+
+<dialog id="dNegocio">
+  <h3 id="nTitulo">Tu negocio de ensayo</h3>
+  <div class="in">
+    <!-- Cada campo explica para qué sirve: quien llega aquí no tiene a nadie
+         al lado que se lo cuente. El número no se pregunta —es de mentira, y
+         en Meta tampoco lo eliges tú— pero SÍ se dice qué es. -->
+    <div id="nCampoNombre"><label class="c">Nombre del negocio</label>
+      <input id="nNombre" placeholder="Colmado La Esquina">
+      <p class="ayuda">Así verán tus clientes de prueba quién les escribe. Puedes cambiarlo cuando quieras.</p></div>
+    <div><label class="c">La dirección donde tu agente recibe los mensajes</label>
+      <input id="nHook" placeholder="https://tu-plataforma.com/webhook/…">
+      <p class="ayuda">Es el webhook del canal de WhatsApp de tu plataforma: ahí te llegarán los mensajes
+        de tus clientes de prueba, firmados igual que los manda WhatsApp. Si todavía no lo tienes,
+        déjalo en blanco y lo pones después.
+        <b>Cada negocio necesita su propio canal</b>: si apuntas al de otro, tu plataforma
+        rechazará los mensajes porque la firma no cuadra.</p></div>
+    <p class="ayuda" id="nAvisoLinea">La línea de WhatsApp (el número donde contesta tu agente) se crea sola.</p>
+  </div>
+  <div class="out"><button class="btn gris" onclick="dNegocio.close()">Ahora no</button><button class="btn" id="bCrearNegocio"><span id="nGuardar">Guardar</span></button></div>
+</dialog>
+
+<!-- Confirmar sin el cartel del navegador: ese lo dibuja el sistema, sale
+     distinto en cada máquina y delata que la pantalla no es la del producto. -->
+<dialog id="dAdminNeg">
+  <h3>Tus negocios de ensayo</h3>
+  <div class="in" id="listaAdminNeg" style="gap:8px"></div>
+  <div class="out"><button class="btn gris" onclick="dAdminNeg.close()">Cerrar</button></div>
+</dialog>
+
+<dialog id="dConfirmar">
+  <h3 id="cfTitulo">¿Seguro?</h3>
+  <div class="in"><p id="cfTexto" style="margin:0;font-size:14px;line-height:1.6;color:var(--tenue)"></p></div>
+  <div class="out">
+    <button class="btn gris" id="cfNo">Cancelar</button>
+    <button class="btn" id="cfSi">Eliminar</button>
+  </div>
+</dialog>
+
+<dialog id="dCliente">
+  <h3>Cliente de prueba</h3>
+  <div class="in">
+    <div><label class="c">Nombre</label><input id="kNombre" placeholder="Juan Pérez"></div>
+    <div><label class="c">Teléfono</label><input id="kTel" placeholder="18299998888"></div>
+    <label class="chk"><input type="checkbox" id="kOculto">
+      <span>Escribe con nombre de usuario y esconde su número, como ya permite WhatsApp.
+        Vale la pena probarlo: tu agente recibe a esta persona sin teléfono.</span></label>
+  </div>
+  <div class="out"><button class="btn gris" onclick="dCliente.close()">Cancelar</button><button class="btn" id="bCrearCliente">Crear</button></div>
+</dialog>
+
+<dialog id="dProducto">
+  <h3>Producto del catálogo</h3>
+  <div class="in">
+    <div><label class="c">Código (SKU)</label><input id="pSku" placeholder="FIL-1234"></div>
+    <div><label class="c">Nombre</label><input id="pNombre" placeholder="Filtro de aceite Hilux"></div>
+    <div><label class="c">Precio</label><input id="pPrecio" placeholder="450"></div>
+    <p class="ayuda">Cuando el cliente arme un pedido, a tu agente le llegan solo estos
+      <b>códigos, sin nombres</b> — así lo manda WhatsApp. Sirve para ver si tu agente
+      sabe reconocer qué le pidieron.</p>
+  </div>
+  <div class="out"><button class="btn gris" onclick="dProducto.close()">Cancelar</button><button class="btn" id="bCrearProd">Crear</button></div>
+</dialog>
+
+<dialog id="dCarrito">
+  <h3>Mandar un pedido</h3>
+  <div class="in">
+    <div id="listaCarrito" style="display:flex;flex-direction:column;gap:11px"></div>
+    <div><label class="c">Nota del cliente</label><input id="cNota" placeholder="Quiero estos dos"></div>
+  </div>
+  <div class="out"><button class="btn gris" onclick="dCarrito.close()">Cancelar</button><button class="btn" id="bMandarCarrito">Mandar</button></div>
+</dialog>
+
+
+<!-- La puerta. Cada negocio entra con SU clave; la de administración abre la
+     gestión de negocios y nada más. -->
+<div class="puerta" id="pantallaAcceso" hidden>
+  <div class="tarjeta">
+    <h2>Ensayo de WhatsApp</h2>
+    <p>Un WhatsApp de mentira para probar tu plataforma: clientes falsos, errores a
+      voluntad, y nada sale a un teléfono real.</p>
+    <div id="accesoEntrar" style="display:flex;flex-direction:column;gap:10px">
+      <input id="entEmail" type="email" placeholder="Tu email" autocomplete="email">
+      <input id="entPassword" type="password" placeholder="Tu contraseña" autocomplete="current-password">
+      <div class="mal" id="entError"></div>
+      <button class="btn" id="bEntrarCuenta" style="width:100%">Entrar</button>
+      <button id="irARegistro" class="alterna">¿No tienes cuenta? Créala aquí</button>
+    </div>
+    <div id="accesoRegistro" style="display:none;flex-direction:column;gap:10px">
+      <input id="regNombre" placeholder="Nombre de tu negocio (lo verán tus clientes de prueba)">
+      <input id="regEmail" type="email" placeholder="Tu email" autocomplete="email">
+      <input id="regPassword" type="password" placeholder="Una contraseña (mínimo 6)" autocomplete="new-password">
+      <div class="mal" id="regError"></div>
+      <button class="btn" id="bCrearCuenta" style="width:100%">Crear mi cuenta</button>
+      <button id="irAEntrar" class="alterna">Ya tengo cuenta</button>
+    </div>
+    <!-- El camino de las claves NO se enseña: quien administra entra con
+         «?clave=…» en la dirección, y quien viene a probar su agente no tiene
+         por qué enterarse de que existen claves. -->
+  </div>
+</div>
+
+<div class="admin" id="pantallaAdmin">
+  <div class="caja">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+      <h2 style="margin:0;flex:1">Negocios del sandbox</h2>
+      <button class="btn gris mini" id="bSalirAdmin">Salir</button>
+    </div>
+    <p style="font-size:13.5px;opacity:.75;margin:4px 0 20px">Cada negocio entra con su clave y ve
+      solo lo suyo. La clave se enseña aquí para poder entregarla; girarla deja la vieja muerta al instante.</p>
+    <div style="display:flex;gap:10px;margin-bottom:22px">
+      <input id="nuevoNegocioNombre" placeholder="Nombre del negocio" style="flex:1;border:1px solid var(--linea2);border-radius:8px;padding:9px 12px;background:var(--entrada);color:var(--texto)">
+      <button class="btn" id="bAltaNegocio">Crear negocio</button>
+    </div>
+    <div id="listaNegocios"></div>
+  </div>
+</div>
+
+<script type="module">
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+let CLAVE = (() => { try { return localStorage.getItem('wa-sandbox-clave') || ''; } catch { return ''; } })();
+const api = async (r, o) => (await fetch(r, {
+  ...o, headers: { 'x-clave': CLAVE, ...(o?.body ? { 'content-type': 'application/json' } : {}) },
+})).json();
+/**
+ * Confirmar con nuestro propio diálogo. Devuelve una promesa igual que el
+ * `confirm` del navegador, así quien llama no cambia de forma.
+ */
+function confirmar({ titulo, texto, boton = 'Eliminar', peligro = true }) {
+  return new Promise((resolver) => {
+    $('#cfTitulo').textContent = titulo;
+    $('#cfTexto').textContent = texto;
+    const si = $('#cfSi');
+    si.textContent = boton;
+    si.classList.toggle('rojo', peligro);
+    const cerrar = (valor) => { dConfirmar.close(); resolver(valor); };
+    si.onclick = () => cerrar(true);
+    $('#cfNo').onclick = () => cerrar(false);
+    dConfirmar.onclose = () => resolver(false);
+    dConfirmar.showModal();
+    $('#cfNo').focus();
+  });
+}
+const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/**
+ * El formato de WhatsApp: *negrita*, _cursiva_, ~tachado~, ```monoespaciado```.
+ *
+ * Se aplica SIEMPRE sobre el texto ya escapado, nunca sobre el crudo: al revés,
+ * un mensaje con `<script>` acabaría ejecutándose. Los asteriscos y guiones
+ * sobreviven al escapado, así que el orden correcto no cuesta nada.
+ *
+ * Los delimitadores piden un carácter que no sea espacio pegado por dentro,
+ * como en WhatsApp: así «2 * 3 * 4» no se vuelve cursiva a mitad de frase.
+ */
+function formatoWhatsApp(crudo) {
+  let t = esc(crudo);
+  t = t.replace(/```([\s\S]+?)```/g, '<code>$1</code>');
+  t = t.replace(/(^|[\s(])\*([^\s*][^*]*?)\*(?=[\s.,;:!?)]|$)/g, '$1<b>$2</b>');
+  t = t.replace(/(^|[\s(])_([^\s_][^_]*?)_(?=[\s.,;:!?)]|$)/g, '$1<i>$2</i>');
+  t = t.replace(/(^|[\s(])~([^\s~][^~]*?)~(?=[\s.,;:!?)]|$)/g, '$1<s>$2</s>');
+  // Los enlaces se vuelven clicables, como en WhatsApp.
+  t = t.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noreferrer">$1</a>');
+  return t;
+}
+const hora = (ms) => new Date(ms).toLocaleTimeString('es-DO', { hour:'2-digit', minute:'2-digit' });
+/** Cuánto hace, en palabras: «hace 2 min», «hace 3 h». */
+const hace = (ms) => {
+  const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (m < 1) return 'ahora mismo';
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.round(m / 60);
+  return h < 24 ? `hace ${h} h` : `hace ${Math.round(h / 24)} d`;
+};
+const dia  = (ms) => { const h=new Date(), d=new Date(ms);
+  return d.toDateString()===h.toDateString() ? 'HOY'
+    : d.toLocaleDateString('es-DO',{day:'numeric',month:'long'}).toUpperCase(); };
+/**
+ * Un retrato para cada contacto, dibujado aquí mismo.
+ *
+ * Antes, sin foto, salía un círculo gris con las iniciales — y cuando el
+ * contacto nace de un número («18095554433») esa inicial es un «1», que no
+ * dice nada y se ve pobre. Ahora cada uno tiene su cara: distinta entre
+ * contactos y SIEMPRE la misma para el mismo, porque sale de su número, no del
+ * azar. Nada se descarga: en un ensayo sin internet las caras seguirían ahí.
+ */
+const PIELES = ['#f2c8a0', '#e0a97f', '#c88a5e', '#a56a41', '#7b4b2a', '#f7d9bd'];
+const PELOS  = ['#2b2118', '#4a3220', '#7b4b2a', '#a9682f', '#d8b26a', '#8d8d8d', '#1b1b1b'];
+const FONDOS = ['#dfe5e7', '#cfe3d6', '#e3dbef', '#f0dfd0', '#d5e2f0', '#efd9dd', '#dcecdf', '#e8e3d3'];
+const ROPAS  = ['#3d6b8e', '#5b7f5b', '#8e5b5b', '#5b5b8e', '#7a6a4f', '#4f6f7a', '#6f4f6f'];
+
+const numeroDeTexto = (t) => {
+  let h = 2166136261;
+  for (const c of String(t || '')) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
+  return Math.abs(h);
+};
+
+function retrato(clave, nombre) {
+  const h = numeroDeTexto(clave);
+  const de = (lista, salto) => lista[Math.floor(h / salto) % lista.length];
+  const piel = de(PIELES, 1), pelo = de(PELOS, 7), fondo = de(FONDOS, 53), ropa = de(ROPAS, 311);
+  const ella = sexoProbable(nombre) === 'women';
+  /* Cinco cabezas, con barba o sin ella, con gafas o sin ellas: 5×2×2 por seis
+     pieles y siete pelos dan de sobra para que en una lista de veinte nadie se
+     repita. Con tres cortes, la lista parecía la misma persona clonada. */
+  const corte = Math.floor(h / 2917) % 5;
+  const barba = !ella && Math.floor(h / 37) % 3 === 0;
+  const gafas = Math.floor(h / 131) % 4 === 0;
+  const pelos = [
+    // melena
+    `<path d="M14 31c0-10 5-16 14-16s14 6 14 16c0 5-1 9-2 12V27c-4 3-8 4-12 4s-8-1-12-4v16c-1-3-2-7-2-12z" fill="${pelo}"/>`,
+    // corto
+    `<path d="M14 29c0-9 6-14 14-14s14 5 14 14c0 2 0 3-1 4-1-6-6-9-13-9s-12 3-13 9c-1-1-1-2-1-4z" fill="${pelo}"/>`,
+    // moño
+    `<circle cx="28" cy="9" r="5" fill="${pelo}"/><path d="M14 29c0-9 6-14 14-14s14 5 14 14c0 2 0 3-1 4-1-6-6-9-13-9s-12 3-13 9c-1-1-1-2-1-4z" fill="${pelo}"/>`,
+    // rapado
+    `<path d="M15 27c1-8 6-12 13-12s12 4 13 12c-2-4-7-6-13-6s-11 2-13 6z" fill="${pelo}"/>`,
+    // rizado
+    `<path d="M14 28c0-9 6-14 14-14s14 5 14 14c0 3-1 4-2 5-1-2-2-3-4-3 1-2 0-4-2-4-1-2-3-3-6-3s-5 1-6 3c-2 0-3 2-2 4-2 0-3 1-4 3-1-1-2-2-2-5z" fill="${pelo}"/>`,
+  ];
+  return `<svg viewBox="0 0 56 56" width="100%" height="100%" aria-label="${esc(nombre || '')}">
+    <rect width="56" height="56" fill="${fondo}"/>
+    <path d="M8 56c0-10 9-15 20-15s20 5 20 15z" fill="${ropa}"/>
+    <ellipse cx="28" cy="30" rx="13" ry="14.5" fill="${piel}"/>
+    ${barba ? `<path d="M15.5 31c1 9 6 13.5 12.5 13.5S39.5 40 40.5 31c1 6-1 13-4 15H19.5c-3-2-5-9-4-15z" fill="${pelo}" opacity=".92"/>` : ''}
+    ${pelos[corte]}
+    <ellipse cx="23" cy="30" rx="1.5" ry="1.9" fill="#2b2118"/>
+    <ellipse cx="33" cy="30" rx="1.5" ry="1.9" fill="#2b2118"/>
+    ${gafas ? `<g stroke="#3a3a3a" stroke-width="1.2" fill="none"><circle cx="23" cy="30" r="4"/><circle cx="33" cy="30" r="4"/><path d="M27 30h2"/></g>` : ''}
+    <path d="M24 37c1.6 1.6 6.4 1.6 8 0" stroke="#8b5a45" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/**
+ * «Juana» → mujer, «Ronald» → hombre, un número → cualquiera.
+ *
+ * En español el nombre terminado en «a» suele ser de mujer, pero hay dos
+ * bolsas de excepciones que se notan enseguida en una lista de veinte
+ * clientes: los hombres acabados en «a» (Juan no, pero Elías, Matías…) y las
+ * mujeres que no acaban en «a» (Abigail, Isabel, Raquel…).
+ */
+const NOMBRES_DE_ELLOS = new Set(['juan', 'elias', 'elías', 'matias', 'matías', 'tobias', 'tobías',
+  'nicolas', 'nicolás', 'andres', 'andrés', 'jonas', 'jonás', 'lucas', 'zacarias', 'zacarías']);
+const NOMBRES_DE_ELLAS = new Set(['abigail', 'isabel', 'raquel', 'beatriz', 'mercedes', 'esther',
+  'ester', 'ruth', 'carmen', 'dolores', 'soledad', 'noemi', 'noemí', 'yaritza', 'yamilet',
+  'nicole', 'jazmin', 'jazmín', 'ivet', 'yudith', 'judith', 'lucero', 'maribel', 'anabel',
+  'mariel', 'yoselin', 'katherine', 'lisbeth', 'yenifer', 'jennifer', 'yaneth']);
+
+function sexoProbable(nombre) {
+  const pila = String(nombre || '').trim().split(/\s+/)[0]?.toLowerCase() || '';
+  if (!pila || /^\d/.test(pila)) return '';
+  if (NOMBRES_DE_ELLOS.has(pila)) return 'men';
+  if (NOMBRES_DE_ELLAS.has(pila)) return 'women';
+  return /[aá]$/.test(pila) ? 'women' : 'men';
+}
+
+/**
+ * La cara de un contacto, por orden: la foto que le subiste, si no una de las
+ * de archivo (siempre la misma para él), y si no hubo forma de bajarlas —sin
+ * internet el día del estreno— el retrato dibujado.
+ */
+const caraDe = (k) => {
+  if (k.foto) {
+    return `<img src="/v21.0/${k.foto}/descargar?access_token=${encodeURIComponent(est.cuenta?.token || '')}" alt="">`;
+  }
+  const clave = k.wa_id || k.user_id || k.nombre;
+  if (est.caras?.length) {
+    /* Que la foto cuadre con el nombre: «Juana» con cara de señor calvo se ve
+       descuidado. Regla de andar por casa para clientes INVENTADOS; cuando no
+       está clara, cualquier cara vale. */
+    const pila = est.caras.filter((f) => f.startsWith(sexoProbable(k.nombre) + '-'));
+    const lista = pila.length ? pila : est.caras;
+    return `<img src="/caras/${lista[numeroDeTexto(clave) % lista.length]}" alt="" loading="lazy">`;
+  }
+  return retrato(clave, k.nombre);
+};
+/* Si quieres caras fotográficas, deja imágenes tuyas —o de licencia clara— en
+   `datos/caras/` del sandbox: las que empiecen por `women-`/`men-` se reparten
+   por nombre. No se baja ninguna de internet a propósito: las de los bancos de
+   «datos de prueba» son personas reales con licencias mezcladas. */
+
+const ini  = (n) => String(n||'?').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase();
+
+
+/* Los iconos, en SVG.
+   Un emoji lo dibuja el sistema operativo: el mismo botón se ve distinto en
+   cada máquina y con un estilo que no es el del producto. Esto se ve igual en
+   todas partes, hereda el color con `currentColor` y escala sin pixelarse. */
+const svg = (d, o = {}) =>
+  `<svg viewBox="0 0 24 24" width="${o.t || 20}" height="${o.t || 20}" fill="${o.relleno ? 'currentColor' : 'none'}"
+        stroke="${o.relleno ? 'none' : 'currentColor'}" stroke-width="1.8" stroke-linecap="round"
+        stroke-linejoin="round" style="vertical-align:-.15em;flex-shrink:0">${d}</svg>`;
+
+const IC = {
+  tic:     () => svg('<path d="m4.5 12.5 5 5 10-11"/>'),
+  flecha:  () => svg('<path d="m6 9 6 6 6-6"/>'),
+  papelera:() => svg('<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>'),
+  luna:    () => svg('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'),
+  sol:     () => svg('<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>'),
+  clip:    () => svg('<path d="M21.4 11.05 12.25 20.2a6 6 0 0 1-8.49-8.49l9.2-9.19a4 4 0 0 1 5.65 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>'),
+  carrito: () => svg('<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h2.5l2.2 11.4a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7H5.4"/>'),
+  enviar:  () => svg('<path d="M3.3 3.3 21 12 3.3 20.7 6 12z"/>', { relleno: true }),
+  visto:   () => svg('<path d="M1.5 12.6 5 16.2 12.2 8"/><path d="M8.6 16.2 12 12.6"/><path d="M14.5 8 18 11.6"/>'),
+  foto:    () => svg('<rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="8.6" cy="10" r="1.7"/><path d="m3.5 17.5 4.6-4.2a2 2 0 0 1 2.7 0l3.4 3.1a2 2 0 0 0 2.7 0l1.6-1.5a2 2 0 0 1 2.7 0l2.3 2.1"/>'),
+  micro:   () => svg('<rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M5 11.5a7 7 0 0 0 14 0M12 18.5V22"/>'),
+  video:   () => svg('<rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="m15.5 10.5 6-3.2v9.4l-6-3.2z"/>'),
+  archivo: () => svg('<path d="M14 2.5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"/><path d="M14 2.5v5h5"/>'),
+  pedido:  () => svg('<path d="M6 2.5h12l1.5 4.5H4.5z"/><path d="M5 7h14v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M9.5 11a2.5 2.5 0 0 0 5 0"/>'),
+  alerta:  () => svg('<path d="M12 3.2 22 20H2z"/><path d="M12 9.5v4.5M12 17.2h.01"/>'),
+  reloj:   () => svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5.3l3.4 2"/>'),
+  equis:   () => svg('<path d="M18.5 5.5 5.5 18.5M5.5 5.5l13 13"/>'),
+  candado: () => svg('<rect x="4.5" y="10.5" width="15" height="10.5" rx="2.2"/><path d="M8 10.5V7.4a4 4 0 0 1 8 0v3.1"/>', { t: 14 }),
+  rota:    () => svg('<rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M3 4.5l18 15"/>'),
+  mas:     () => svg('<path d="M12 5.5v13M5.5 12h13"/>'),
+  chats:   () => svg('<path d="M20.5 11.5a8 8 0 0 1-11.6 7.1L3.5 20.5l1.9-5.3A8 8 0 1 1 20.5 11.5z"/>'),
+  lupa:    () => svg('<circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4-4"/>'),
+  puntos:  () => svg('<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>', { relleno: true }),
+  ajustes: () => svg('<circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3.1 15H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H23a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+};
+
+let est = { cuentas:[], cuenta:null, numero:null, clientes:[], cliente:null, ultimos:{}, noVistos:{} };
+
+/**
+ * Hasta cuándo viste cada chat. Vive en el navegador porque «visto» es de
+ * quien mira esta pantalla, no del sistema: aquí tú eres el cliente, y lo no
+ * visto son las respuestas del agente que llegaron con el chat cerrado.
+ */
+const vistos = (() => { try { return JSON.parse(localStorage.getItem('wa-sandbox-vistos') || '{}'); } catch { return {}; } })();
+const marcarVisto = (wa) => { vistos[wa] = Date.now(); try { localStorage.setItem('wa-sandbox-vistos', JSON.stringify(vistos)); } catch { /* da igual */ } };
+
+/* ── Negocio ── */
+async function cargarNegocios() {
+  est.cuentas = await api('/panel/cuentas');
+  const c = est.cuentas.find((x) => x.id === est.cuenta?.id) || est.cuentas[0];
+  if (c) {
+    est.cuenta = c; est.numero = c.numeros[0];
+    for (const el of ['#negAv','#negAv2']) $(el).textContent = ini(c.nombre);
+    $('#negNombre').textContent = c.nombre;
+    $('#negAv2').dataset.tip = `${c.nombre} · ${est.numero?.display_phone_number || ''}`;
+    /* Las credenciales SON del negocio: se pintan cuando ya se sabe cuál es.
+       Al arrancar, el modo avanzado se aplica antes de cargarlos, así que sin
+       esto la pestaña «Conectar» quedaba en blanco hasta apagar y encender. */
+    if ($('#swAvanzado').checked) cargarCredenciales();
+  }
+  await cargarClientes();
+}
+/**
+ * El menú de negocios: cuáles tienes, cuál estás usando, crear otro y borrar
+ * el que sobra. Antes el nombre ROTABA al pulsarlo — había que adivinar
+ * cuántos negocios había y no existía forma de eliminar ninguno.
+ */
+function pintarMenuNegocios() {
+  const m = $('#menuNegocios');
+  /* Solo elegir. Borrar no vive aquí: una acción que destruye conversaciones
+     no puede aparecer bajo el cursor de quien venía a cambiar de negocio. */
+  m.innerHTML = est.cuentas.map((c) => `
+    <div class="fila-neg${c.id === est.cuenta?.id ? ' actual' : ''}">
+      <button data-usar="${esc(c.id)}">
+        <span class="av-mini">${esc(ini(c.nombre))}</span>
+        <span class="txt"><b>${esc(c.nombre)}</b><i>contesta en ${esc(c.numeros[0]?.display_phone_number || '')}</i></span>
+        ${c.id === est.cuenta?.id ? `<span class="tic">${IC.tic({ t: 16 })}</span>` : ''}
+      </button>
+    </div>`).join('') + `
+    <div class="sep"></div>
+    <button class="pie-menu" id="mNuevoNegocio">${IC.mas({ t: 16 })} Crear otro negocio</button>
+    <button class="pie-menu" id="mAdminNegocios">${IC.ajustes({ t: 16 })} Administrar negocios</button>`;
+
+  m.querySelectorAll('[data-usar]').forEach((b) => b.onclick = () => {
+    est.cuenta = est.cuentas.find((x) => x.id === b.dataset.usar);
+    est.numero = est.cuenta.numeros[0]; est.cliente = null;
+    cerrarMenuNegocios(); cerrarChat(); ultimaComprobacion = 0;
+    cargarNegocios().then(cargarEventos); cargarProductos();
+  });
+  $('#mNuevoNegocio').onclick = () => { cerrarMenuNegocios(); pedirNegocio({ conectar: false }); };
+  $('#mAdminNegocios').onclick = () => { cerrarMenuNegocios(); abrirAdminNegocios(); };
+}
+const cerrarMenuNegocios = () => { $('#menuNegocios').style.display = 'none'; };
+
+/**
+ * Nada más poner la dirección, se llama a la puerta: el apretón de manos que
+ * hace Meta antes de suscribirse. Si contesta, la franja lo dice y el aviso
+ * viejo deja de asustar; si no, se dice ahí mismo, con el problema delante.
+ */
+async function comprobarConexion(cuentaId) {
+  const r = await api(`/panel/cuentas/${cuentaId}/verificar`, { method: 'POST' });
+  $('#punto').className = 'punto ' + (r.ok ? 'ok' : 'mal');
+  $('#saludTexto').textContent = r.ok
+    ? 'conectado con tu plataforma · manda un mensaje para probarlo'
+    : `tu plataforma no contestó: ${r.motivo || 'sin respuesta'}`;
+  return r.ok;
+}
+
+/**
+ * Administrar negocios: aquí sí se renombra y se elimina, con botones que
+ * dicen lo que hacen. Separado del selector a propósito — cambiar de negocio
+ * es cosa de todos los días; borrarlo, de una vez en la vida.
+ */
+function abrirAdminNegocios() {
+  const lista = $('#listaAdminNeg');
+  lista.innerHTML = est.cuentas.map((c) => `
+    <div class="neg-admin">
+      <span class="av-mini">${esc(ini(c.nombre))}</span>
+      <span class="txt"><b>${esc(c.nombre)}</b>
+        <i>Tu agente contesta en ${esc(c.numeros[0]?.display_phone_number || '')}
+        ${c.webhook_url ? '· recibe en ' + esc(c.webhook_url) : '· todavía sin conectar a tu plataforma'}</i></span>
+      <button class="btn gris mini" data-editar="${esc(c.id)}">Editar</button>
+      <button class="btn gris mini" data-borrar="${esc(c.id)}">Eliminar</button>
+    </div>`).join('') || '<p style="opacity:.6;font-size:14px">Todavía no tienes ningún negocio de ensayo.</p>';
+
+  lista.querySelectorAll('[data-editar]').forEach((b) => b.onclick = () => {
+    dAdminNeg.close();
+    pedirNegocio({ editar: est.cuentas.find((x) => x.id === b.dataset.editar) });
+  });
+  lista.querySelectorAll('[data-borrar]').forEach((b) => b.onclick = async () => {
+    const c = est.cuentas.find((x) => x.id === b.dataset.borrar);
+    dAdminNeg.close();
+    if (!await confirmar({ titulo: `¿Eliminar «${c.nombre}»?`,
+      texto: 'Se van con él sus clientes de prueba y todas sus conversaciones. No hay vuelta atrás.' })) {
+      dAdminNeg.showModal(); return;
+    }
+    await api(`/panel/cuentas/${c.id}`, { method: 'DELETE' });
+    if (est.cuenta?.id === c.id) { est.cuenta = null; est.numero = null; est.cliente = null; cerrarChat(); }
+    await cargarNegocios(); await cargarProductos();
+    if (!est.cuentas.length) { pedirNegocio({ conectar: false }); return; }
+    abrirAdminNegocios();
+  });
+  dAdminNeg.showModal();
+}
+$('#selNegocio').onclick = (e) => {
+  e.stopPropagation();
+  if (!est.cuentas.length) return pedirNegocio({ conectar: false });
+  const m = $('#menuNegocios');
+  if (m.style.display === 'block') return cerrarMenuNegocios();
+  pintarMenuNegocios();
+  const r = $('#selNegocio').getBoundingClientRect();
+  m.style.left = r.left + 'px';
+  m.style.display = 'block';
+};
+document.addEventListener('click', (e) => {
+  if (!$('#menuNegocios').contains(e.target)) cerrarMenuNegocios();
+});
+/**
+ * El mismo diálogo, dos usos: conectar el negocio que nació con tu registro
+ * (solo falta decir dónde avisar a tu agente) o crear otro desde cero.
+ */
+function pedirNegocio({ conectar, editar }) {
+  $('#nTitulo').textContent = editar ? 'Editar negocio'
+    : conectar ? 'Conecta tu agente' : 'Otro negocio de ensayo';
+  $('#nCampoNombre').style.display = conectar ? 'none' : '';
+  /* La línea se crea sola: eso se dice al crear, no al editar lo que ya existe. */
+  $('#nAvisoLinea').style.display = (conectar || editar) ? 'none' : '';
+  $('#nNombre').value = editar ? (editar.nombre || '') : '';
+  dNegocio.dataset.editar = editar ? editar.id : '';
+  /* El campo llega ESCRITO: el de este negocio, el último que usaste en otro,
+     o el que trae esta instalación. Teclear la misma dirección cada vez es
+     trabajo que la pantalla puede ahorrarse. */
+  const ultimo = [...est.cuentas].reverse().find((c) => c.webhook_url)?.webhook_url;
+  $('#nHook').value = (editar ? editar.webhook_url : conectar ? est.cuenta?.webhook_url : '')
+    || (editar ? '' : ultimo || est.webhookDefecto || '');
+  dNegocio.dataset.conectar = conectar ? '1' : '';
+  dNegocio.showModal();
+  (conectar ? $('#nHook') : $('#nNombre')).focus();
+  $('#nGuardar').textContent = editar ? 'Guardar cambios' : conectar ? 'Guardar' : 'Crear';
+}
+$('#bCrearNegocio').onclick = async () => {
+  const hook = $('#nHook').value.trim();
+  if (dNegocio.dataset.editar) {
+    const nombre = $('#nNombre').value.trim();
+    if (!nombre) return;
+    const id = dNegocio.dataset.editar;
+    await api(`/panel/cuentas/${id}`, { method: 'PATCH',
+      body: JSON.stringify({ nombre, webhook_url: hook }) });
+    dNegocio.close(); await cargarNegocios(); await cargarEventos();
+    if (hook) await comprobarConexion(id);
+    abrirAdminNegocios();
+    return;
+  }
+  if (dNegocio.dataset.conectar) {
+    await api(`/panel/cuentas/${est.cuenta.id}`, { method:'PATCH', body: JSON.stringify({ webhook_url: hook }) });
+    dNegocio.close(); await cargarNegocios();
+    if (hook) await comprobarConexion(est.cuenta.id);
+    if (!est.clientes?.length) dCliente.showModal();
+    return;
+  }
+  const nombre = $('#nNombre').value.trim();
+  if (!nombre) return;
+  const r = await api('/panel/cuentas', { method:'POST', body: JSON.stringify({ nombre, webhook_url: hook }) });
+  dNegocio.close(); est.cuenta = r.cuenta; await cargarNegocios(); await cargarProductos();
+  dCliente.showModal();
+};
+$('#bEmpezar').onclick = () => (est.cuenta ? dCliente.showModal() : pedirNegocio({ conectar: false }));
+
+function cerrarChat() {
+  $('#barra').style.display = 'none'; $('#redactar').style.display = 'none';
+  $('#escribiendo').style.display = 'none'; $('#centro').classList.add('vacio');
+  $('#hilo').innerHTML = `<div class="bienvenida"><h3>Ensaya tu agente</h3>
+    <p>Escríbele como si fueras un cliente y mira exactamente qué contestaría en WhatsApp.</p></div>`;
+}
+
+/* ── Clientes ── */
+/** Refresca UN chat de la lista: su último mensaje y su globo. */
+async function refrescarChat(waId) {
+  if (!est.numero) return;
+  const ms = await api(`/panel/numeros/${est.numero.id}/mensajes?waId=${encodeURIComponent(waId)}`);
+  est.ultimos[waId] = ms[ms.length - 1] || null;
+  if (est.cliente?.wa_id === waId) marcarVisto(waId);
+  est.noVistos[waId] = ms.filter((m) => m.direccion === 'saliente' && m.cuando > (vistos[waId] || 0)).length;
+  est.clientes.sort((a, b) => (est.ultimos[b.wa_id]?.cuando || 0) - (est.ultimos[a.wa_id]?.cuando || 0));
+  pintarChats();
+}
+
+async function cargarClientes() {
+  if (!est.numero) { $('#chats').innerHTML = '<div class="hueco">Primero crea tu negocio de ensayo,<br>arriba en la franja verde.</div>'; return; }
+  est.clientes = await api(`/panel/numeros/${est.numero.id}/contactos`);
+  await Promise.all(est.clientes.map(async (k) => {
+    const ms = await api(`/panel/numeros/${est.numero.id}/mensajes?waId=${encodeURIComponent(k.wa_id)}`);
+    est.ultimos[k.wa_id] = ms[ms.length - 1] || null;
+    // Lo no visto: respuestas del negocio llegadas después de tu última mirada.
+    // El chat abierto se cuenta como visto al momento, como en WhatsApp.
+    if (est.cliente?.wa_id === k.wa_id) marcarVisto(k.wa_id);
+    est.noVistos[k.wa_id] = ms.filter((m) => m.direccion === 'saliente' && m.cuando > (vistos[k.wa_id] || 0)).length;
+  }));
+  // Como WhatsApp: el chat con el mensaje más reciente, arriba.
+  est.clientes.sort((a, b) => (est.ultimos[b.wa_id]?.cuando || 0) - (est.ultimos[a.wa_id]?.cuando || 0));
+  pintarChats();
+}
+
+/** La lista, con el último mensaje y su hora — como WhatsApp Web. */
+function pintarChats() {
+  const q = $('#filtro').value.trim().toLowerCase();
+  const vis = est.clientes.filter((k) => {
+    if (q && !k.nombre.toLowerCase().includes(q) && !k.wa_id.includes(q)) return false;
+    if (filtro === 'ocultos') return !!k.user_id;
+    if (filtro === 'sinleer') return (est.noVistos[k.wa_id] || 0) > 0;
+    return true;
+  });
+  $('#chats').innerHTML = vis.length ? vis.map((k) => {
+    const u = est.ultimos[k.wa_id];
+    const resumen = !u ? '<i style="color:var(--debil)">sin mensajes</i>'
+      : (u.direccion === 'entrante' ? visto(u.estado) + ' ' : '') + vistazo(u);
+    const sinVer = est.noVistos[k.wa_id] || 0;
+    return `<div class="chat ${est.cliente?.wa_id === k.wa_id ? 'sel' : ''} ${sinVer ? 'nuevo' : ''}" data-wa="${esc(k.wa_id)}">
+      <span class="av">${caraDe(k)}</span>
+      <span class="cu">
+        <span class="l1"><span class="n">${esc(k.nombre)}</span><span class="h" ${sinVer ? 'style="color:var(--verde);font-weight:600"' : ''}>${u ? hora(u.cuando) : ''}</span></span>
+        <span class="l2"><span class="u">${resumen}</span>${sinVer ? `<span class="globo">${sinVer}</span>` : (k.user_id ? '<span class="etq">sin número</span>' : '')}</span>
+      </span></div>`;
+  }).join('') : '<div class="hueco">Ningún cliente todavía.<br>Dale a <b>+</b> para crear uno.</div>';
+  $$('#chats .chat').forEach((el) => el.onclick = () => abrir(est.clientes.find((k) => k.wa_id === el.dataset.wa)));
+}
+/** El resumen de la lista: un icono y la palabra, como en WhatsApp. */
+const vistazo = (m) => {
+  const con = (ic, t) => `<span style="display:inline-flex;gap:5px;align-items:center;vertical-align:-.2em">${ic}<span>${t}</span></span>`;
+  const chico = { t: 15 };
+  if (m.tipo === 'image')    return con(IC.foto(chico), 'Foto');
+  if (m.tipo === 'audio')    return con(IC.micro(chico), 'Nota de voz');
+  if (m.tipo === 'video')    return con(IC.video(chico), 'Video');
+  if (m.tipo === 'document') return con(IC.archivo(chico), 'Archivo');
+  if (m.tipo === 'order')    return con(IC.pedido(chico), 'Pedido');
+  return esc(m.texto || '');
+};
+$('#filtro').oninput = pintarChats;
+/* Los filtros de arriba, como los de WhatsApp Web. «No leídos» aquí significa
+   que TU último mensaje sigue sin que el agente lo lea: es lo que de verdad
+   quieres cazar cuando pruebas. */
+let filtro = 'todos';
+$$('.fil').forEach((b) => b.onclick = () => {
+  $$('.fil').forEach((x) => x.classList.toggle('on', x === b));
+  filtro = b.dataset.fil; pintarChats();
+});
+
+$('#bNuevoCliente').onclick = () => est.numero ? dCliente.showModal() : pedirNegocio({ conectar: false });
+$('#bCrearCliente').onclick = async () => {
+  const k = await api(`/panel/numeros/${est.numero.id}/contactos`, { method:'POST', body: JSON.stringify({
+    nombre: $('#kNombre').value.trim(), telefono: $('#kTel').value.trim(), oculto: $('#kOculto').checked }) });
+  dCliente.close(); $('#kNombre').value=''; $('#kTel').value=''; $('#kOculto').checked=false;
+  await cargarClientes(); await abrir(k);
+};
+
+async function abrir(k) {
+  if (!k) return;
+  est.cliente = k;
+  marcarVisto(k.wa_id); est.noVistos[k.wa_id] = 0;
+  $('#centro').classList.remove('vacio');
+  $('#barra').style.display = 'flex'; $('#redactar').style.display = 'flex';
+  $('#escribiendo').style.display = 'block';
+  $('#chatAv').innerHTML = caraDe(k);
+  $('#chatNombre').textContent = k.nombre;
+  $('#chatSub').textContent = k.user_id ? `@${k.username} · sin enseñar su número` : `+${k.wa_id}`;
+  firmaPintada = ''; $('#hilo').dataset.pintado = '';   // hilo nuevo: se pinta entero
+  pintarChats(); await cargarHilo(); await cargarArmados();
+  $('#hilo').scrollTop = $('#hilo').scrollHeight;
+  $('#texto').focus();
+}
+
+/* ── El hilo ── */
+async function cargarHilo() {
+  if (!est.cliente) return;
+  pintarHilo(await api(`/panel/numeros/${est.numero.id}/mensajes?waId=${encodeURIComponent(est.cliente.wa_id)}`));
+}
+
+/** El contenido, no el nombre del tipo: WhatsApp enseña la foto, no «IMAGE». */
+function contenido(m) {
+  const cu = (() => { try { return JSON.parse(m.cuerpo || '{}'); } catch { return {}; } })();
+  /* El id va por `encodeURIComponent`: llega dentro del sobre del mensaje, y
+     un id con comillas se salía del atributo y metía su propio `onerror`. */
+  const src = (id) => `/v21.0/${encodeURIComponent(id)}/descargar?access_token=${encodeURIComponent(est.cuenta?.token || '')}`;
+  const md = cu[m.tipo] || {};
+  const cap = m.texto ? `<div>${formatoWhatsApp(m.texto)}</div>` : '';
+  if (m.tipo === 'image' && md.id)
+    return `<img src="${src(md.id)}" alt="foto" loading="lazy"
+      onerror="this.outerHTML='&lt;div class=\\'rota\\'&gt;🖼 no se pudo cargar la foto&lt;/div&gt;'">${cap}`;
+  if (m.tipo === 'audio' && md.id)    return `<audio controls preload="metadata" src="${src(md.id)}"></audio>${cap}`;
+  if (m.tipo === 'video' && md.id)    return `<video controls src="${src(md.id)}"></video>${cap}`;
+  if (m.tipo === 'document' && md.id) return `<a class="doc" href="${src(md.id)}" target="_blank" rel="noreferrer">${IC.archivo()} ${esc(md.filename || 'archivo')}</a>${cap}`;
+  if (m.tipo === 'template' && cu._plantilla) {
+    /* Como se ve en el teléfono: el encabezado en negrita, el cuerpo normal,
+       el pie pequeño y apagado, y los botones separados por su línea. */
+    const t = cu._plantilla;
+    return (t.cabecera ? `<div class="pl-cab">${formatoWhatsApp(t.cabecera)}</div>` : '')
+      + (t.cuerpo ? `<div>${formatoWhatsApp(t.cuerpo)}</div>` : '')
+      + (t.pie ? `<div class="pl-pie">${esc(t.pie)}</div>` : '')
+      + ((t.botones || []).length
+        ? `<div class="pl-botones">${t.botones.map((b) => `<span>${esc(b)}</span>`).join('')}</div>` : '');
+  }
+  if (m.tipo === 'order') {
+    const it = cu.order?.product_items || [];
+    const total = it.reduce((s, x) => s + (x.item_price || 0) * (x.quantity || 1), 0);
+    return `<div class="carro"><div class="enc"><span>Pedido del catálogo</span><span>${it.length} art.</span></div>` +
+      it.map((x) => `<div class="l"><span class="sku">${esc(x.product_retailer_id)} ×${esc(x.quantity)}</span><span>${esc(x.currency)} ${esc(x.item_price)}</span></div>`).join('') +
+      `<div class="l" style="border-top:1px solid rgba(0,0,0,.1);margin-top:6px;padding-top:6px"><b>Total</b><b>DOP ${total}</b></div></div>` +
+      (cu.order?.text ? `<div>${formatoWhatsApp(cu.order.text)}</div>` : '');
+  }
+  if (m.tipo === 'reaction')
+    return `<span style="font-size:22px">${esc(m.texto || '')}</span>` +
+      `<div style="font-size:12px;opacity:.7;margin-top:2px">reaccionó a un mensaje</div>`;
+  if (m.tipo === 'interactive')
+    return `<div style="opacity:.75;font-size:12px">pulsó un botón</div><div>${esc(m.texto || '')}</div>`;
+  return formatoWhatsApp(m.texto || '—');
+}
+
+/**
+ * El visto: un tilde al enviar, dos al entregar, dos azules al leer.
+ *
+ * Los dos tildes NO son el mismo dibujo repetido: en WhatsApp el de delante
+ * tapa al de atrás, así que al de atrás se le corta el brazo largo justo donde
+ * empieza el otro. Dibujando dos tildes enteros, los trazos se cruzan y a
+ * tamaño real —11 píxeles— se lee como un garabato.
+ */
+const tildeSvg = (doble) => {
+  const delante = 'M6.6 10.4 9.1 12.9 18.2 3.2';      // el tilde completo
+  const detras  = 'M1 10.4 3.5 12.9 9.6 6.4';         // el de atrás, cortado donde pasa el otro
+  const solo    = 'M1 10.4 3.5 12.9 12.6 3.2';
+  return `<svg viewBox="0 0 ${doble ? 19.2 : 13.6} 16" width="${doble ? 16 : 11.5}" height="12.5" fill="none"
+        stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+        style="vertical-align:-.15em">${doble ? `<path d="${detras}"/><path d="${delante}"/>` : `<path d="${solo}"/>`}</svg>`;
+};
+const tilde1 = tildeSvg(false);
+const tilde2 = tildeSvg(true);
+const visto = (e) => e === 'read' ? `<span class="vv leido">${tilde2}</span>`
+  : e === 'delivered' ? `<span class="vv">${tilde2}</span>`
+  : e === 'failed' ? `<span class="vv fallo">${IC.alerta()} no llegó</span>`
+  : e ? `<span class="vv">${tilde1}</span>` : '';
+
+/** Una firma barata del hilo: si no cambió, no hay nada que repintar. */
+const firmaDe = (ms) => ms.length + ':' + ms.map((m) => m.id + (m.estado || '')).join('|');
+let firmaPintada = '';
+
+function pintarHilo(ms) {
+  const h = $('#hilo');
+
+  /**
+   * No repintar si nada cambió, y no bajar si estabas leyendo arriba.
+   *
+   * Esto se refresca solo cada dos segundos y medio, y repintaba el hilo entero
+   * mandándolo al final SIEMPRE: subías a leer algo y a los dos segundos te
+   * devolvía abajo de un tirón. En un chat eso es insufrible.
+   *
+   * Las dos reglas son las de cualquier chat de verdad: si no llegó nada, no se
+   * toca la pantalla; y si llegó algo, solo se baja cuando ya estabas abajo —
+   * quien está leyendo el historial no quiere que le muevan el suelo.
+   */
+  const firma = firmaDe(ms);
+  if (firma === firmaPintada && h.dataset.pintado === '1') return;
+  const alFinal = h.scrollHeight - h.scrollTop - h.clientHeight < 80;
+  const dondeEstaba = h.scrollTop;
+  firmaPintada = firma;
+  if (!ms.length) {
+    h.innerHTML = `<div class="aviso">Escribe abajo como si fueras ${esc(est.cliente?.nombre || 'el cliente')}
+      y mira qué contesta tu agente.</div>`;
+    h.dataset.pintado = '1';
+    return;
+  }
+  h.innerHTML = `<div class="aviso">${IC.candado()} Esto es un ensayo: nada de lo que escribas aquí sale a un teléfono real.</div>`;
+  let ultDia = '', ultDir = '';
+  for (const m of ms) {
+    const d = dia(m.cuando);
+    if (d !== ultDia) { h.insertAdjacentHTML('beforeend', `<div class="dia">${d}</div>`); ultDia = d; ultDir = ''; }
+    const mio = m.direccion === 'entrante';   // «mío» = del cliente: es a quien finges
+    if (m.direccion !== ultDir) {
+      h.insertAdjacentHTML('beforeend', `<div class="grupo ${mio?'mio':''}"></div>`); ultDir = m.direccion;
+    }
+    h.lastElementChild.insertAdjacentHTML('beforeend',
+      /* El visto va en MIS mensajes, no en los que recibo: en WhatsApp los
+         tildes son del que envía. Como aquí tú eres el cliente, los tildes son
+         de lo que TÚ mandas — y el azul aparece cuando el agente lo lee. */
+      `<div class="b ${mio?'mio':''}">${contenido(m)}<span class="pie">${hora(m.cuando)}${mio?visto(m.estado):''}</span></div>`);
+  }
+  h.dataset.pintado = '1';
+  // Al final solo si ya estabas al final; si no, te quedas donde estabas.
+  h.scrollTop = alFinal ? h.scrollHeight : dondeEstaba;
+}
+
+/* ── Escribir ── */
+const enviar = async () => {
+  const t = $('#texto').value.trim();
+  if (!t || !est.cliente) return;
+  $('#texto').value = ''; $('#texto').style.height = 'auto';
+  await api(`/panel/numeros/${est.numero.id}/entrante`, { method:'POST',
+    body: JSON.stringify({ waId: est.cliente.wa_id, texto: t }) });
+  await cargarHilo(); await cargarEventos(); cargarClientes();
+};
+$('#bEnviar').onclick = enviar;
+/* Enter manda, Mayús+Enter salta de línea. Al revés —o sin salto— no se puede
+   escribir una lista, que es la mitad de lo que manda un agente. */
+$('#texto').onkeydown = (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); }
+};
+$('#texto').oninput = () => {
+  const t = $('#texto');
+  t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight, 130) + 'px';
+};
+$('#bLeer').onclick = async () => {
+  await api(`/panel/numeros/${est.numero.id}/leer`, { method:'POST', body: JSON.stringify({ waId: est.cliente.wa_id }) });
+  await cargarHilo();
+};
+/* El menú del contacto: foto, nombre, vaciar, eliminar. */
+$('#bMasChat').onclick = (e) => { e.stopPropagation(); const m = $('#menuChat');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none'; };
+document.addEventListener('click', () => { $('#menuChat').style.display = 'none'; });
+$('#mFoto').onclick = () => $('#fotoContacto').click();
+$('#fotoContacto').onchange = async () => {
+  const f = $('#fotoContacto').files[0];
+  if (!f || !est.cliente) return;
+  const fd = new FormData(); fd.append('file', f);
+  await fetch(`/panel/numeros/${est.numero.id}/contactos/${encodeURIComponent(est.cliente.wa_id)}/foto`, { method:'POST', headers:{'x-clave':CLAVE}, body: fd });
+  $('#fotoContacto').value = '';
+  await cargarClientes(); await abrir(est.clientes.find((k) => k.wa_id === est.cliente.wa_id));
+};
+$('#mNombre').onclick = async () => {
+  const nuevo = prompt('Nuevo nombre del contacto:', est.cliente?.nombre || '');
+  if (!nuevo || !nuevo.trim()) return;
+  await api(`/panel/numeros/${est.numero.id}/contactos/${encodeURIComponent(est.cliente.wa_id)}`, {
+    method:'PATCH', body: JSON.stringify({ nombre: nuevo.trim() }) });
+  await cargarClientes(); await abrir(est.clientes.find((k) => k.wa_id === est.cliente.wa_id));
+};
+$('#mVaciar').onclick = async () => {
+  if (!await confirmar({ titulo: `¿Vaciar la conversación con ${est.cliente.nombre}?`,
+    texto: 'El contacto se queda; los mensajes de este ensayo se van.', boton: 'Vaciar' })) return;
+  await fetch(`/panel/numeros/${est.numero.id}/contactos/${encodeURIComponent(est.cliente.wa_id)}/mensajes`, { method:'DELETE', headers:{'x-clave':CLAVE} });
+  firmaPintada = ''; await cargarHilo(); await cargarClientes();
+};
+$('#mBorrar').onclick = async () => {
+  if (!await confirmar({ titulo: `¿Eliminar a ${est.cliente.nombre}?`,
+    texto: 'Se va el contacto y toda su conversación.' })) return;
+  await fetch(`/panel/numeros/${est.numero.id}/contactos/${encodeURIComponent(est.cliente.wa_id)}`, { method:'DELETE', headers:{'x-clave':CLAVE} });
+  est.cliente = null; cerrarChat(); await cargarClientes();
+};
+
+$('#bAdjuntar').onclick = () => $('#archivo').click();
+$('#archivo').onchange = async () => {
+  const f = $('#archivo').files[0];
+  if (!f || !est.cliente) return;
+  const fd = new FormData(); fd.append('file', f);
+  const m = await (await fetch(`/panel/numeros/${est.numero.id}/subir`, { method:'POST', headers:{'x-clave':CLAVE}, body: fd })).json();
+  const tipo = f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video'
+             : f.type.startsWith('audio/') ? 'audio' : 'document';
+  await api(`/panel/numeros/${est.numero.id}/entrante`, { method:'POST', body: JSON.stringify({
+    waId: est.cliente.wa_id, tipo, texto: $('#texto').value.trim() || undefined, media: { id: m.id, mime_type: m.mime_type } }) });
+  $('#texto').value=''; $('#archivo').value='';
+  await cargarHilo(); await cargarEventos(); cargarClientes();
+};
+/* Reaccionar: doble clic sobre lo que dijo el agente, como en WhatsApp. */
+document.addEventListener('dblclick', async (e) => {
+  const b = e.target.closest('.grupo:not(.mio) .b');
+  if (!b || !est.cliente) return;
+  const i = [...$$('#hilo .grupo:not(.mio) .b')].indexOf(b);
+  const ms = await api(`/panel/numeros/${est.numero.id}/mensajes?waId=${encodeURIComponent(est.cliente.wa_id)}`);
+  const suyos = ms.filter((m) => m.direccion === 'saliente');
+  const obj = suyos[i];
+  if (!obj) return;
+  await api(`/panel/numeros/${est.numero.id}/reaccion`, { method:'POST',
+    body: JSON.stringify({ waId: est.cliente.wa_id, aQue: obj.id, emoji: '👍' }) });
+  await cargarHilo(); await cargarEventos();
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target.tagName === 'IMG' && e.target.closest('.b')) {
+    const d = document.createElement('div');
+    d.className = 'lightbox'; d.innerHTML = `<img src="${e.target.src}">`;
+    d.onclick = () => d.remove(); document.body.append(d);
+  }
+});
+
+/* ── Pedido ── */
+$('#bCarrito').onclick = async () => {
+  if (!est.cliente) return;
+  const ps = await api(`/panel/cuentas/${est.cuenta.id}/productos`);
+  if (!ps.length) { $('#swAvanzado').checked = true; aplicarAvanzado(); irA('tienda'); dProducto.showModal(); return; }
+  $('#listaCarrito').innerHTML = ps.map((p) => `<label class="chk"><input type="checkbox" value="${esc(p.retailer_id)}">
+    <span>${esc(p.nombre)} <span class="sku" style="font-family:var(--mono);font-size:11px">${esc(p.retailer_id)}</span>
+    ${p.precio != null ? ' · RD$' + p.precio : ''}</span></label>`).join('');
+  dCarrito.showModal();
+};
+$('#bMandarCarrito').onclick = async () => {
+  const arts = $$('#listaCarrito input:checked').map((i) => ({ retailer_id: i.value, cantidad: 1 }));
+  if (!arts.length) return;
+  await api(`/panel/numeros/${est.numero.id}/carrito`, { method:'POST', body: JSON.stringify({
+    waId: est.cliente.wa_id, articulos: arts, texto: $('#cNota').value.trim() }) });
+  dCarrito.close(); $('#cNota').value = '';
+  await cargarHilo(); await cargarEventos(); cargarClientes();
+};
+
+/* ── Modo avanzado ── */
+function aplicarAvanzado() {
+  const on = $('#swAvanzado').checked;
+  $('#cuadro').classList.toggle('avanzado', on);
+  try { localStorage.setItem('wa-sandbox-avanzado', on ? '1' : ''); } catch { /* da igual */ }
+  if (on) { cargarCredenciales(); cargarUltimoSobre(); cargarPlantillas(); }
+}
+$('#swAvanzado').onchange = aplicarAvanzado;
+const irA = (h) => $$('.pest button').find((b) => b.dataset.hoja === h)?.click();
+$$('.pest button').forEach((b) => b.onclick = () => {
+  $$('.pest button').forEach((x) => x.classList.toggle('on', x === b));
+  $$('.hoja').forEach((h) => h.classList.toggle('on', h.id === 'h-' + b.dataset.hoja));
+});
+
+/**
+ * Por qué no le llega, en cristiano y con la salida.
+ *
+ * «respondió 401» no le dice nada a nadie. El 401 casi siempre es UNA cosa: el
+ * webhook apunta al canal de OTRO negocio, y ese canal verifica la firma con
+ * otro app secret. Pasa fácil porque la dirección viene escrita de antes.
+ */
+function porQueNoLlega(u) {
+  const dice = String(u.error || u.respuesta || '');
+  if (u.estado === 401 || u.estado === 403 || /signature|firma/i.test(dice)) {
+    return 'ese webhook es de otro canal: copia las credenciales de ESTE negocio en tu plataforma';
+  }
+  if (u.estado === 404) return 'ese webhook no existe en tu plataforma: revisa la dirección';
+  if (!u.estado) return `no se pudo llegar a tu plataforma: ${dice.slice(0, 60)}`;
+  return `no le llega a tu agente: respondió ${u.estado}`;
+}
+
+/** La salud en palabras: ¿le está llegando a tu agente? */
+let ultimaComprobacion = 0;
+async function cargarEventos() {
+  const e = await api('/panel/entregas' + (est.numero ? `?numeroId=${est.numero.id}` : ''));
+  const u = e[0];
+  if (!u) { $('#punto').className = 'punto'; $('#saludTexto').textContent = 'sin actividad'; }
+  else {
+    const bien = u.estado >= 200 && u.estado < 300;
+    $('#punto').className = 'punto ' + (bien ? 'ok' : 'mal');
+    $('#saludTexto').textContent = bien ? `tu agente está recibiendo · ${hora(u.cuando)}`
+      : `${porQueNoLlega(u)} · ${hace(u.cuando)}`;
+    /**
+     * Un fallo se queda escrito hasta el próximo mensaje, y eso es una trampa:
+     * arreglas la configuración, recargas, y la franja te sigue acusando de un
+     * problema que ya no existe. Así que si lo último fue un fallo, se llama a
+     * la puerta AHORA —el mismo apretón de manos de Meta— y se dice la verdad
+     * de este momento, no la del último intento.
+     */
+    if (!bien && est.cuenta && Date.now() - ultimaComprobacion > 20000) {
+      ultimaComprobacion = Date.now();
+      const r = await api(`/panel/cuentas/${est.cuenta.id}/verificar`, { method: 'POST' });
+      if (r.ok) {
+        $('#punto').className = 'punto ok';
+        $('#saludTexto').textContent = 'conectado con tu plataforma · manda un mensaje para probarlo';
+      }
+    }
+  }
+  if (!$('#cuadro').classList.contains('avanzado')) return;
+  $('#eventos').innerHTML = e.slice(0, 25).map((x) => {
+    const bien = x.estado >= 200 && x.estado < 300;
+    return `<div class="ev"><span class="cod ${bien?'ok':'no'}">${x.estado ?? '—'}</span>
+      <span class="q" data-tip="${esc(x.error || x.respuesta || '')}">${esc(x.error || x.respuesta || 'entregado')}</span>
+      <span class="h">${hora(x.cuando)}</span></div>`;
+  }).join('') || '<div class="hueco">Todavía no ha salido nada.</div>';
+}
+async function cargarUltimoSobre() {
+  if (!est.cliente) return;
+  const ms = await api(`/panel/numeros/${est.numero.id}/mensajes?waId=${encodeURIComponent(est.cliente.wa_id)}`);
+  const u = ms[ms.length - 1];
+  $('#ultimoSobre').textContent = u ? JSON.stringify(JSON.parse(u.cuerpo || '{}'), null, 1) : 'Nada todavía.';
+}
+
+/* ── Fallos ── */
+async function cargarArmados() {
+  const rs = await api('/panel/reglas');
+  $('#armados').innerHTML = rs.map((r) => `<div class="chip"><span>armado: ${esc(r.clase)}${r.codigo ? ' · ' + r.codigo : ''}</span>
+    <button data-quitar="${r.id}" style="margin-left:auto;color:var(--tenue)">quitar</button></div>`).join('');
+  $$('#armados [data-quitar]').forEach((b) => b.onclick = async () => {
+    await fetch(`/panel/reglas/${b.dataset.quitar}`, { method:'DELETE', headers:{'x-clave':CLAVE} }); cargarArmados();
+  });
+  $$('.op').forEach((o) => o.classList.toggle('on',
+    rs.some((r) => r.clase === o.dataset.clase && String(r.codigo ?? '') === o.dataset.cod)));
+}
+$$('.op').forEach((o) => o.onclick = async () => {
+  if (!est.numero) return;
+  await api('/panel/reglas', { method:'POST', body: JSON.stringify({
+    numeroId: est.numero.id, waId: est.cliente?.wa_id,
+    clase: o.dataset.clase, codigo: o.dataset.cod ? Number(o.dataset.cod) : null, veces: 1 }) });
+  cargarArmados();
+});
+
+/* ── Tienda ── */
+async function cargarProductos() {
+  if (!est.cuenta) return;
+  const ps = await api(`/panel/cuentas/${est.cuenta.id}/productos`);
+  $('#productos').innerHTML = ps.length ? ps.map((p) => `<div class="prod">
+    <span>${esc(p.nombre)}<br><span class="sku">${esc(p.retailer_id)}</span></span>
+    <span>${p.precio != null ? 'RD$' + p.precio : '—'}</span></div>`).join('')
+    : '<div class="hueco" style="padding:16px">Sin productos. Añade alguno para poder mandar pedidos.</div>';
+}
+$('#bNuevoProd').onclick = () => est.cuenta && dProducto.showModal();
+$('#bCrearProd').onclick = async () => {
+  await api(`/panel/cuentas/${est.cuenta.id}/productos`, { method:'POST', body: JSON.stringify({
+    retailer_id: $('#pSku').value.trim(), nombre: $('#pNombre').value.trim(), precio: $('#pPrecio').value.trim() }) });
+  dProducto.close(); $('#pSku').value=''; $('#pNombre').value=''; $('#pPrecio').value='';
+  cargarProductos();
+};
+async function cargarPlantillas() {
+  if (!$('#cuadro').classList.contains('avanzado')) return;
+  const ps = await api('/panel/plantillas');
+  $('#plantillas').innerHTML = ps.length ? ps.map((p) => `<div class="prod">
+    <span>${esc(p.nombre)}<br><span class="sku">${esc(p.idioma)} · ${esc(p.estado)}</span></span>
+    <span><button data-ap="${p.id}" style="color:var(--verde)" data-tip="Aprobar">${IC.visto()}</button>
+          <button data-re="${p.id}" style="color:var(--malo);margin-left:8px" data-tip="Rechazar">${IC.equis()}</button></span></div>`).join('')
+    : '<div class="hueco" style="padding:16px">Ninguna. Cuando tu agente cree una, aparece aquí para que la apruebes — sin esperar los días de WhatsApp.</div>';
+  $$('#plantillas [data-ap],#plantillas [data-re]').forEach((b) => b.onclick = async () => {
+    await api(`/panel/plantillas/${b.dataset.ap || b.dataset.re}/estado`, { method:'POST',
+      body: JSON.stringify({ estado: b.dataset.ap ? 'APPROVED' : 'REJECTED' }) });
+    cargarPlantillas();
+  });
+}
+$('#bReentregar').onclick = async () => {
+  if (!est.cliente) return;
+  const ms = await api(`/panel/numeros/${est.numero.id}/mensajes?waId=${encodeURIComponent(est.cliente.wa_id)}`);
+  const ult = [...ms].reverse().find((m) => m.direccion === 'entrante');
+  if (!ult) { $('#resMeta').textContent = 'No hay ningún mensaje tuyo que reentregar.'; return; }
+  const r = await api(`/panel/numeros/${est.numero.id}/reentregar`, { method:'POST', body: JSON.stringify({ wamid: ult.id }) });
+  $('#resMeta').textContent = r.entrega?.ok
+    ? 'Reentregado con el mismo id. Si en tu plataforma aparece dos veces, el dedupe falla.'
+    : `No se pudo reentregar: ${r.entrega?.motivo || ''}`;
+  await cargarEventos();
+};
+$('#bVerificar').onclick = async () => {
+  const r = await api(`/panel/cuentas/${est.cuenta.id}/verificar`, { method:'POST' });
+  $('#resMeta').textContent = r.ok ? 'Verificación correcta: devolvió el challenge tal cual.'
+    : `Verificación fallida: ${r.motivo}`;
+};
+$('#bRegistrar').onclick = async () => {
+  const r = await fetch(`/v21.0/${est.numero.id}/register`, { method:'POST',
+    headers:{'content-type':'application/json', authorization:`Bearer ${est.cuenta.token}`},
+    body: JSON.stringify({ messaging_product:'whatsapp', pin:'000000' }) });
+  $('#estRegistro').textContent = r.ok ? 'registrado ✓' : `falló (${r.status})`;
+};
+function cargarCredenciales() {
+  if (!est.cuenta) return;
+  /* En el MISMO orden y con los MISMOS nombres que el formulario donde se
+     pegan: así se va de arriba abajo copiando, sin buscar cuál es cuál. */
+  const d = [
+    ['Phone Number ID (Meta)', est.numero.id],
+    ['Token de acceso permanente', est.cuenta.token],
+    ['App Secret', est.cuenta.app_secret],
+    ['Verify Token', est.cuenta.verify_token],
+    ['WABA ID (opcional, para plantillas)', est.cuenta.id],
+    /* El entorno no se pega: se elige en un desplegable. Ofrecer «copiar» ahí
+       manda a la gente a pegar un texto donde hay que escoger una opción. */
+    ['Entorno', 'Sandbox — ensayo, nada sale a teléfonos', { elegir: true }],
+  ];
+  $('#credenciales').innerHTML = d.map(([k, v, o]) => `<div class="dato">
+    <span><span class="k">${k}</span><div class="v">${esc(v)}</div></span>
+    ${o?.elegir ? '<span style="font-size:12.5px;color:var(--tenue)">elígelo</span>'
+      : `<button data-copiar="${esc(v)}" style="color:var(--verde-osc);font-size:13px">copiar</button>`}</div>`).join('');
+  $$('#credenciales [data-copiar]').forEach((b) => b.onclick = () => {
+    navigator.clipboard?.writeText(b.dataset.copiar);
+    b.textContent = 'copiado'; setTimeout(() => (b.textContent = 'copiar'), 1200);
+  });
+}
+
+/**
+ * Nada de sondear: el servidor avisa por SSE y la pantalla pide solo lo que
+ * cambió. Antes esto preguntaba cada 1,2–2,5 segundos aunque no pasara nada —
+ * 59 requests por minuto con la pantalla quieta. EventSource se reconecta solo
+ * si la conexión se cae, y abajo queda un respaldo lento por si el río se
+ * seca sin avisar.
+ */
+let apagarEscribiendo = null;
+let rio = null;
+function abrirRio() {
+  if (rio) rio.close();
+  // EventSource no sabe poner cabeceras: la clave va en la query solo aquí.
+  rio = new EventSource('/panel/eventos?clave=' + encodeURIComponent(CLAVE));
+  rio.onmessage = (e) => {
+  let ev; try { ev = JSON.parse(e.data); } catch { return; }
+  if (ev.tipo === 'mensaje' || ev.tipo === 'estado') {
+    if (ev.waId) refrescarChat(ev.waId);
+    if (est.cliente && ev.waId === est.cliente.wa_id) {
+      cargarHilo();
+      if (ev.tipo === 'mensaje') $('#escribiendo').innerHTML = '';
+    }
+  }
+  if (ev.tipo === 'escribiendo' && est.cliente && (ev.waId === est.cliente.wa_id || ev.waId === null)) {
+    $('#escribiendo').innerHTML = `escribiendo<i>…</i>`;
+    clearTimeout(apagarEscribiendo);
+    apagarEscribiendo = setTimeout(() => { $('#escribiendo').innerHTML = ''; }, Math.max(1000, (ev.hasta || 0) - Date.now()));
+  }
+  if (ev.tipo === 'contacto') cargarClientes();
+  if (ev.tipo === 'entrega') cargarEventos();
+  };
+}
+
+/* El respaldo: una pasada tranquila por si algún evento se perdió. */
+setInterval(() => { if (MODO === 'negocio' && est.numero) { cargarClientes(); cargarEventos(); } }, 45000);
+setInterval(() => { if (MODO === 'negocio') cargarPlantillas(); }, 30000);
+
+/**
+ * El tema. Por defecto, el del sistema: no se marca nada en la raíz y manda
+ * `prefers-color-scheme`. En cuanto eliges, se marca y se recuerda.
+ */
+function pintarTema() {
+  const g = (() => { try { return localStorage.getItem('wa-sandbox-tema'); } catch { return null; } })();
+  if (g) document.documentElement.setAttribute('data-theme', g);
+  else document.documentElement.removeAttribute('data-theme');
+  const oscuro = g ? g === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  $('#bTema').innerHTML = oscuro ? IC.sol({ t: 19 }) : IC.luna({ t: 19 });
+  if ($('#bTema2')) $('#bTema2').innerHTML = oscuro ? IC.sol() : IC.luna();
+  $('#bTema').dataset.tip = oscuro ? 'Cambiar a claro' : 'Cambiar a oscuro';
+}
+$('#bTema').onclick = () => {
+  const oscuroAhora = document.documentElement.getAttribute('data-theme') === 'dark'
+    || (!document.documentElement.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+  try { localStorage.setItem('wa-sandbox-tema', oscuroAhora ? 'light' : 'dark'); } catch { /* da igual */ }
+  pintarTema();
+};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', pintarTema);
+pintarTema();
+
+/* Los iconos del HTML se rellenan aquí: así viven en un solo sitio. */
+window.__iconoRota = IC.rota();
+$('#bAdjuntar').innerHTML = IC.clip();
+$('#bCarrito').innerHTML  = IC.carrito();
+$('#bEnviar').innerHTML   = IC.enviar();
+$('#bLeer').innerHTML     = IC.visto();
+$('#bNuevoCliente').innerHTML = IC.mas({ t: 18 });
+$('#negFlecha').innerHTML = IC.flecha({ t: 15 });
+$$('[data-ic]').forEach((el) => (el.innerHTML = IC[el.dataset.ic]?.() ?? ''));
+$('#bAjustes').onclick = () => pedirNegocio({ conectar: !!est.cuenta });
+$('#bTema2').onclick = () => $('#bTema').click();
+/* El mismo negocio en los dos sitios: el riel y la franja. */
+$('#negAv2').onclick = (e) => { e.stopPropagation(); $('#selNegocio').click(); };
+
+/**
+ * La puerta. Nada de lo de arriba corre hasta que una clave diga quién eres:
+ * la de un negocio abre SUS chats; la de administración abre la gestión de
+ * negocios y ningún chat. El servidor decide — aquí solo se pregunta.
+ */
+let MODO = null;   // 'negocio' | 'admin'
+
+async function entrarCon(clave) {
+  const r = clave ? await fetch('/panel/quien', { headers: { 'x-clave': clave } }) : null;
+  if (!r || !r.ok) {
+    $('#pantallaAcceso').hidden = false;
+    if (clave) $('#entError').textContent = 'Esa clave no abre nada. Revísala.';
+    setTimeout(() => $('#entEmail').focus(), 50);
+    return;
+  }
+  const q = await r.json();
+  est.webhookDefecto = q.webhookDefecto || '';
+  est.caras = await (await fetch('/panel/caras')).json().catch(() => []);
+  CLAVE = clave;
+  try { localStorage.setItem('wa-sandbox-clave', clave); } catch { /* da igual */ }
+  $('#pantallaAcceso').hidden = true;
+  if (q.admin) {
+    MODO = 'admin';
+    $('#pantallaAdmin').classList.add('on');
+    cargarNegociosAdmin();
+  } else {
+    MODO = 'negocio';
+    await arrancar();
+  }
+}
+
+async function arrancar() {
+  try { $('#swAvanzado').checked = !!localStorage.getItem('wa-sandbox-avanzado'); } catch { /* da igual */ }
+  aplicarAvanzado();
+  abrirRio();
+  await cargarNegocios(); await cargarEventos(); await cargarProductos();
+  if (!est.cuentas.length) pedirNegocio({ conectar: false });
+  else if (!est.cuenta?.webhook_url) pedirNegocio({ conectar: true });
+}
+
+const salir = () => { try { localStorage.removeItem('wa-sandbox-clave'); } catch { /* da igual */ } location.reload(); };
+$('#bSalir').onclick = salir;
+$('#bSalirAdmin').onclick = salir;
+/* Autoservicio con cuentas del propio sandbox: entrar y registrarse. La clave
+   sb_… sigue siendo lo que aísla por debajo, pero el usuario nunca la ve. */
+async function puerta(ruta, cuerpo, errorEn, boton) {
+  $(boton).disabled = true;
+  try {
+    const r = await fetch(ruta, { method: 'POST',
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify(cuerpo) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { $(errorEn).textContent = j.error || 'No se pudo.'; return; }
+    $(errorEn).textContent = '';
+    await entrarCon(j.clave);
+  } finally { $(boton).disabled = false; }
+}
+const entrarConCuenta = () => {
+  const email = $('#entEmail').value.trim(), password = $('#entPassword').value;
+  if (!email || !password) { $('#entError').textContent = 'Pon tu email y tu contraseña.'; return; }
+  puerta('/panel/entrar', { email, password }, '#entError', '#bEntrarCuenta');
+};
+const registrarse = () => {
+  const nombre = $('#regNombre').value.trim(), email = $('#regEmail').value.trim(), password = $('#regPassword').value;
+  if (!nombre || !email || !password) { $('#regError').textContent = 'Llena los tres campos.'; return; }
+  puerta('/panel/registrar', { nombre, email, password }, '#regError', '#bCrearCuenta');
+};
+$('#bEntrarCuenta').onclick = entrarConCuenta;
+$('#entPassword').onkeydown = (e) => { if (e.key === 'Enter') entrarConCuenta(); };
+$('#bCrearCuenta').onclick = registrarse;
+$('#regPassword').onkeydown = (e) => { if (e.key === 'Enter') registrarse(); };
+const ensenar = (cual) => {
+  $('#accesoEntrar').style.display = cual === 'entrar' ? 'flex' : 'none';
+  $('#accesoRegistro').style.display = cual === 'registro' ? 'flex' : 'none';
+};
+$('#irARegistro').onclick = () => { ensenar('registro'); $('#regNombre').focus(); };
+$('#irAEntrar').onclick = () => { ensenar('entrar'); $('#entEmail').focus(); };
+
+/* ── Administración: los negocios y sus claves ── */
+async function cargarNegociosAdmin() {
+  const filas = await api('/panel/negocios');
+  $('#listaNegocios').innerHTML = (filas || []).map((n) => `
+    <div class="neg-fila">
+      <span style="flex:1;min-width:160px"><b>${esc(n.nombre)}</b>
+        <div class="meta">${n.cuentas} cuenta(s) · ${n.mensajes} mensaje(s)</div></span>
+      <span class="clave" data-tip="Pulsa para copiar">${esc(n.clave)}</span>
+      <button class="btn mini" data-enlace="${esc(n.clave)}">Copiar enlace</button>
+      <button class="btn gris mini" data-girar="${esc(n.id)}">Girar clave</button>
+      <button class="btn gris mini" data-borrar="${esc(n.id)}" style="color:#d33">Eliminar</button>
+    </div>`).join('') || '<p style="opacity:.6">Todavía no hay negocios. Crea el primero arriba.</p>';
+  /**
+   * Lo que se le manda al negocio es ESTE enlace, no la clave pelada: lo abre
+   * y ya está dentro, sin aprender nada. La clave suelta queda para quien
+   * configura a mano.
+   */
+  $$('#listaNegocios [data-enlace]').forEach((b) => b.onclick = () => {
+    navigator.clipboard?.writeText(location.origin + '/?clave=' + encodeURIComponent(b.dataset.enlace));
+    const antes = b.textContent; b.textContent = 'Copiado ✓';
+    setTimeout(() => { b.textContent = antes; }, 1500);
+  });
+  $$('#listaNegocios .clave').forEach((el) => el.onclick = () => {
+    navigator.clipboard?.writeText(el.textContent);
+    el.style.borderColor = 'var(--verde)';
+  });
+  $$('#listaNegocios [data-girar]').forEach((b) => b.onclick = async () => {
+    if (!await confirmar({ titulo: '¿Girar la clave?', boton: 'Girar clave', peligro: false,
+      texto: 'La clave actual deja de funcionar al instante y quien la tenga se queda fuera.' })) return;
+    await api(`/panel/negocios/${b.dataset.girar}/clave`, { method: 'POST' });
+    cargarNegociosAdmin();
+  });
+  $$('#listaNegocios [data-borrar]').forEach((b) => b.onclick = async () => {
+    if (!await confirmar({ titulo: '¿Eliminar este negocio?',
+      texto: 'Se va con todo lo suyo: cuentas, conversaciones y archivos. No hay vuelta atrás.' })) return;
+    await api(`/panel/negocios/${b.dataset.borrar}`, { method: 'DELETE' });
+    cargarNegociosAdmin();
+  });
+}
+$('#bAltaNegocio').onclick = async () => {
+  const nombre = $('#nuevoNegocioNombre').value.trim();
+  if (!nombre) return;
+  await api('/panel/negocios', { method: 'POST', body: JSON.stringify({ nombre }) });
+  $('#nuevoNegocioNombre').value = '';
+  cargarNegociosAdmin();
+};
+
+/* El enlace de acceso: si la URL trae la clave, entra sola y la barra queda
+   limpia — que la clave no viva en el historial ni en un pantallazo. */
+const claveEnUrl = new URLSearchParams(location.search).get('clave');
+if (claveEnUrl) history.replaceState(null, '', location.pathname);
+entrarCon(claveEnUrl || CLAVE);
+</script>
+</body>
+</html>
