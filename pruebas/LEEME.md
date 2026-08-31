@@ -30,6 +30,7 @@ node pruebas/globos.mjs            # los no leídos
 node pruebas/sse.mjs               # que la pantalla se entere sin sondear
 node pruebas/scroll.mjs            # que no se baje sola al leer arriba
 node pruebas/contactos.mjs         # crear, renombrar, foto, vaciar, eliminar
+node pruebas/clientes-navegador.mjs # el formulario llega escrito y no admite repetidos
 ```
 
 ## Con una plataforma conectada

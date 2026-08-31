@@ -20,6 +20,7 @@ import { avisar } from "./eventos.js";
 import { conClave } from "./acceso.js";
 import { crearNegocio } from "./negocio.js";
 import { porQueNoEsTelefono } from "./telefonos.js";
+import { clienteInventado } from "./nombres.js";
 
 export const panel = Router();
 
@@ -154,6 +155,19 @@ panel.post("/numeros/:numeroId/contactos", (req, res) => {
     if (mal) return res.status(400).json({ error: `Ese número no vale: ${mal}.` });
   }
   const waId = String(telefono || "").replace(/\D/g, "") || ("1809" + nuevoId(7).slice(0, 7));
+  /**
+   * Un número que ya es de alguien NO se pisa.
+   *
+   * Con `INSERT OR REPLACE`, crear un cliente con un número repetido borraba al
+   * anterior: su nombre desaparecía y su conversación se quedaba huérfana en la
+   * lista. Un teléfono identifica a UNA persona, aquí y en WhatsApp.
+   */
+  const yaEs = db.prepare(`SELECT nombre FROM contactos WHERE wa_id = ? AND numero_id = ?`)
+    .get(waId, req.params.numeroId);
+  if (yaEs) {
+    return res.status(409).json({ error: `Ese número ya es de ${yaEs.nombre}.` });
+  }
+
   const c = {
     wa_id: waId,
     numero_id: req.params.numeroId,
@@ -164,9 +178,22 @@ panel.post("/numeros/:numeroId/contactos", (req, res) => {
     creado: Date.now(),
   };
   db.prepare(
-    `INSERT OR REPLACE INTO contactos (wa_id, numero_id, dueno, nombre, user_id, username, creado)
+    `INSERT INTO contactos (wa_id, numero_id, dueno, nombre, user_id, username, creado)
      VALUES (@wa_id, @numero_id, @dueno, @nombre, @user_id, @username, @creado)`,
   ).run(c);
+  res.json(c);
+});
+
+/**
+ * Un cliente inventado que todavía no existe aquí, para llegar el formulario
+ * escrito. Quien quiera uno concreto, lo cambia; quien solo quiera gente con
+ * la que probar, le da a crear y ya.
+ */
+panel.get("/numeros/:numeroId/cliente-inventado", (req, res) => {
+  if (!suNumero(req, res)) return;
+  const existe = db.prepare(`SELECT 1 FROM contactos WHERE wa_id = ? AND numero_id = ?`);
+  const c = clienteInventado((tel) => !!existe.get(tel, req.params.numeroId));
+  if (!c) return res.status(409).json({ error: "Ya usaste todos los números de ensayo de este negocio." });
   res.json(c);
 });
 

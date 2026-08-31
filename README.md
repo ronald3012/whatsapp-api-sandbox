@@ -81,9 +81,13 @@ firma no cuadre y verás 401.
 
 ## Cómo se usa
 
-1. **Crea clientes falsos.** Marcando *«esconde su número»* llegan con `user_id`
-   y sin `wa_id` — el caso de los nombres de usuario de WhatsApp, que rompe el
-   guardado de contactos de más de una plataforma.
+1. **Crea clientes falsos.** El formulario **llega escrito** con un nombre y un
+   número que todavía no existen en ese negocio, para que hacer veinte clientes
+   sea darle veinte veces a Crear; cámbialos cuando quieras a alguien concreto.
+   Un número solo puede ser de una persona: si repites, te dice de quién es.
+   Marcando *«esconde su número»* llegan con `user_id` y sin `wa_id` — el caso
+   de los nombres de usuario de WhatsApp, que rompe el guardado de contactos de
+   más de una plataforma.
 2. **Escríbele al negocio como si fueras el cliente.** El sandbox entrega el
    webhook firmado, tu agente responde de verdad, y su respuesta aparece en la
    conversación con sus acuses.

@@ -367,6 +367,10 @@
   .puerta input{width:100%;box-sizing:border-box;border:1px solid var(--linea2);border-radius:8px;
     padding:10px 12px;font-size:14px;background:var(--entrada);color:var(--texto)}
   .puerta .mal:empty{display:none}
+  .enlace{color:var(--verde-osc);text-decoration:underline;background:none;border:0;padding:0;
+          font:inherit;cursor:pointer}
+  dialog .mal{color:var(--malo);font-size:13px}
+  dialog .mal:empty{display:none}
   .puerta .alterna{font-size:12.5px;color:var(--tenue);text-decoration:underline;background:none;border:none;cursor:pointer;padding:0}
   /* Nada de anillo azul del sistema: WhatsApp no lo tiene. El foco de teclado
      (Tab) sí se marca, en verde, que para eso existe. */
@@ -565,11 +569,16 @@
 <dialog id="dCliente">
   <h3>Cliente de prueba</h3>
   <div class="in">
+    <!-- Llega escrito: crear veinte clientes inventando nombre y número cada vez
+         es el trabajo que hace que nadie pruebe con veinte clientes. -->
     <div><label class="c">Nombre</label><input id="kNombre" placeholder="Juan Pérez"></div>
-    <div><label class="c">Teléfono</label><input id="kTel" placeholder="18299998888"></div>
+    <div><label class="c">Teléfono</label><input id="kTel" placeholder="18095550101"></div>
+    <p class="ayuda" style="margin-top:-2px">Te propongo uno que no existe todavía. Cámbialo si
+      quieres a alguien concreto — <button id="kOtro" class="enlace">dame otro</button>.</p>
     <label class="chk"><input type="checkbox" id="kOculto">
       <span>Escribe con nombre de usuario y esconde su número, como ya permite WhatsApp.
         Vale la pena probarlo: tu agente recibe a esta persona sin teléfono.</span></label>
+    <div class="mal" id="kError"></div>
   </div>
   <div class="out"><button class="btn gris" onclick="dCliente.close()">Cancelar</button><button class="btn" id="bCrearCliente">Crear</button></div>
 </dialog>
@@ -1005,16 +1014,16 @@ $('#bCrearNegocio').onclick = async () => {
     await api(`/panel/cuentas/${est.cuenta.id}`, { method:'PATCH', body: JSON.stringify({ webhook_url: hook }) });
     dNegocio.close(); await cargarNegocios();
     if (hook) await comprobarConexion(est.cuenta.id);
-    if (!est.clientes?.length) dCliente.showModal();
+    if (!est.clientes?.length) nuevoCliente();
     return;
   }
   const nombre = $('#nNombre').value.trim();
   if (!nombre) return;
   const r = await api('/panel/cuentas', { method:'POST', body: JSON.stringify({ nombre, webhook_url: hook }) });
   dNegocio.close(); est.cuenta = r.cuenta; await cargarNegocios(); await cargarProductos();
-  dCliente.showModal();
+  nuevoCliente();
 };
-$('#bEmpezar').onclick = () => (est.cuenta ? dCliente.showModal() : pedirNegocio({ conectar: false }));
+$('#bEmpezar').onclick = () => (est.cuenta ? nuevoCliente() : pedirNegocio({ conectar: false }));
 
 function cerrarChat() {
   $('#barra').style.display = 'none'; $('#redactar').style.display = 'none';
@@ -1095,10 +1104,39 @@ $$('.fil').forEach((b) => b.onclick = () => {
   filtro = b.dataset.fil; pintarChats();
 });
 
-$('#bNuevoCliente').onclick = () => est.numero ? dCliente.showModal() : pedirNegocio({ conectar: false });
+$('#bNuevoCliente').onclick = nuevoCliente;
+/**
+ * Abrir el formulario de un cliente nuevo, ya escrito.
+ *
+ * La sugerencia la da el servidor porque es él quien sabe qué números están
+ * cogidos en ESE negocio: proponer desde aquí acabaría ofreciendo uno repetido
+ * en cuanto la lista creciera.
+ */
+async function nuevoCliente() {
+  if (!est.numero) return pedirNegocio({ conectar: false });
+  $('#kError').textContent = '';
+  $('#kOculto').checked = false;
+  $('#kNombre').value = ''; $('#kTel').value = '';
+  dCliente.showModal();
+  await sugerirCliente();
+  $('#kNombre').select();
+}
+
+async function sugerirCliente() {
+  const c = await api(`/panel/numeros/${est.numero.id}/cliente-inventado`);
+  if (c?.nombre) { $('#kNombre').value = c.nombre; $('#kTel').value = c.telefono; }
+  else $('#kError').textContent = c?.error || '';
+}
+$('#kOtro').onclick = (e) => { e.preventDefault(); sugerirCliente(); };
+
 $('#bCrearCliente').onclick = async () => {
+  const nombre = $('#kNombre').value.trim();
+  if (!nombre) { $('#kError').textContent = 'Ponle un nombre.'; return; }
   const k = await api(`/panel/numeros/${est.numero.id}/contactos`, { method:'POST', body: JSON.stringify({
-    nombre: $('#kNombre').value.trim(), telefono: $('#kTel').value.trim(), oculto: $('#kOculto').checked }) });
+    nombre, telefono: $('#kTel').value.trim(), oculto: $('#kOculto').checked }) });
+  /* Si el número ya es de alguien, el diálogo se queda abierto con lo escrito:
+     cerrarlo obligaría a teclearlo todo otra vez para cambiar un dígito. */
+  if (k?.error) { $('#kError').textContent = k.error; return; }
   dCliente.close(); $('#kNombre').value=''; $('#kTel').value=''; $('#kOculto').checked=false;
   await cargarClientes(); await abrir(k);
 };
