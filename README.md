@@ -171,6 +171,27 @@ quieres caras fotográficas, deja imágenes tuyas —o de licencia clara— en
 `datos/caras/`; las que empiecen por `women-` o `men-` se reparten según el
 nombre del contacto.
 
+## Desplegarlo
+
+Trae `Dockerfile` y `docker-compose.yml`:
+
+```bash
+docker compose up -d          # y queda en el 8095 de la red de docker
+```
+
+**En Dokploy** (o Coolify, Portainer…): crea una aplicación de tipo *Compose*
+apuntando a este repositorio y expón el servicio `sandbox` en el puerto `8095`
+desde su pestaña de dominios. El compose **no publica puertos a propósito**: en
+un despliegue de verdad quien atiende desde fuera es el proxy, con su
+certificado; un puerto abierto al mundo se salta ese proxy —y con él el HTTPS—.
+
+Lo único que hay que conservar es el volumen `datos`: ahí viven la base, los
+archivos subidos y la clave de administración. Sin él, cada despliegue empieza
+de cero.
+
+Un apunte: es un proceso Node con SQLite, así que **no se escala con réplicas**.
+Si algún día hicieran falta, primero hay que sacar la base a otro sitio.
+
 ## Ponerlo en internet
 
 Está pensado para que varias personas lo usen a la vez, pero antes de exponerlo:

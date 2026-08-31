@@ -1,0 +1,40 @@
+# Para Dokploy, Coolify, Portainer o un `docker compose up` a secas.
+#
+# En Dokploy: crea una aplicación de tipo Compose, apúntala a este repositorio,
+# y en su pestaña de Dominios expón el servicio `sandbox` en el puerto 8095.
+# NO se publican puertos aquí: en un despliegue de verdad quien atiende desde
+# fuera es el proxy, con su certificado. Un puerto abierto al mundo se salta ese
+# proxy —y con él el HTTPS—, y la clave de sesión viajaría en claro.
+
+services:
+  sandbox:
+    build: .
+    # O, si prefieres no construir, la imagen ya publicada:
+    # image: ghcr.io/ronald3012/whatsapp-api-sandbox:latest
+    restart: unless-stopped
+    environment:
+      # El puerto de dentro. Se cambia solo si choca con algo.
+      PORT: 8095
+      # La dirección con la que se arman las URLs de los medios. Ponla con tu
+      # dominio: sin ella se adivina de la petición, y detrás de un proxy eso
+      # puede salir mal (URLs con http:// o con el host interno).
+      SANDBOX_URL_PUBLICA: ${SANDBOX_URL_PUBLICA:-}
+      # La dirección de webhook que se le propone a quien crea un negocio.
+      SANDBOX_WEBHOOK_DEFECTO: ${SANDBOX_WEBHOOK_DEFECTO:-}
+      # ⚠️ Solo en local. Deja entregar webhooks a localhost y a la red privada.
+      # En internet NO la pongas: es lo que evita que el sandbox sirva de puente
+      # hacia tu red interna.
+      SANDBOX_RED_PRIVADA: ${SANDBOX_RED_PRIVADA:-}
+    volumes:
+      # Todo lo que hay que conservar: la base, los archivos subidos y la clave
+      # de administración. Sin este volumen, cada despliegue empieza de cero.
+      - datos:/app/datos
+    # Un solo proceso Node con SQLite: no se escala con réplicas. Si algún día
+    # hicieran falta, primero hay que sacar la base a otro sitio.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  datos:
