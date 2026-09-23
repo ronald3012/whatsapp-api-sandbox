@@ -122,12 +122,24 @@ graph.post("/:phoneNumberId/messages", autenticar, async (req, res) => {
     return res.json({ success: true });
   }
 
-  const to = String(b.to || "").replace(/\D/g, "");
+  /**
+   * A quién va: por teléfono o por @usuario.
+   *
+   * Desde 2026 una persona puede escribirle a un negocio con su @usuario y
+   * ocultar el número. Entonces no hay teléfono al que responder y Meta pide
+   * que el envío lleve `recipient` con su BSUID —«DO.1098454149505849»— y
+   * NINGÚN `to`. Aquí faltaba, así que este clon contestaba «Param to is
+   * required» a un envío que Meta acepta: mentía en la dirección peligrosa,
+   * haciendo fallar un ensayo que en producción habría funcionado.
+   */
+  const porUsuario = !b.to && !!b.recipient;
+  const to = porUsuario ? String(b.recipient).trim() : String(b.to || "").replace(/\D/g, "");
   if (!to) return responderError(res, errorMeta(100, "Param to is required"));
   /* Sin código de país no hay a quién entregar, y Meta lo rechaza. Aceptarlo
      aquí hacía que un ensayo pasara y el envío de verdad fallara: justo lo que
-     este clon existe para evitar. */
-  const mal = porQueNoEsTelefono(to);
+     este clon existe para evitar. A un BSUID no se le mira eso: no es un
+     teléfono y no tiene por qué parecerlo. */
+  const mal = porUsuario ? null : porQueNoEsTelefono(to);
   if (mal) {
     const e = ERRORES[131009];
     return responderError(res, errorMeta(131009, e.message, { details: `${e.details} (${mal})`, status: 400 }));
