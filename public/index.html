@@ -1181,7 +1181,12 @@ function contenido(m) {
     /* Como se ve en el teléfono: el encabezado en negrita, el cuerpo normal,
        el pie pequeño y apagado, y los botones separados por su línea. */
     const t = cu._plantilla;
-    return (t.cabecera ? `<div class="pl-cab">${formatoWhatsApp(t.cabecera)}</div>` : '')
+    const md = t.medio;
+    const cabMedio = !md ? ''
+      : md.tipo === 'image' ? `<img src="${src(md.id)}" alt="encabezado" loading="lazy">`
+      : md.tipo === 'video' ? `<video controls src="${src(md.id)}"></video>`
+      : `<a class="doc" href="${src(md.id)}" target="_blank" rel="noreferrer">${IC.archivo()} ${esc(md.filename || 'documento')}</a>`;
+    return cabMedio + (t.cabecera ? `<div class="pl-cab">${formatoWhatsApp(t.cabecera)}</div>` : '')
       + (t.cuerpo ? `<div>${formatoWhatsApp(t.cuerpo)}</div>` : '')
       + (t.pie ? `<div class="pl-pie">${esc(t.pie)}</div>` : '')
       + ((t.botones || []).length

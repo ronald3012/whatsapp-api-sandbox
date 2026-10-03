@@ -65,7 +65,9 @@ export const firmar = (crudo, appSecret) =>
  * `error.error_data.details` para decidir qué enseñarle al vendedor, así que
  * la forma importa tanto como el código.
  */
-export function errorMeta(code, message, { subcode, details, status = 400 } = {}) {
+/* `usuario` es el `error_user_msg` que Meta añade en los errores de plantillas:
+   lo que la plataforma le puede enseñar tal cual a quien la está creando. */
+export function errorMeta(code, message, { subcode, details, status = 400, usuario } = {}) {
   return {
     status,
     cuerpo: {
@@ -75,6 +77,7 @@ export function errorMeta(code, message, { subcode, details, status = 400 } = {}
         code,
         ...(subcode ? { error_subcode: subcode } : {}),
         ...(details ? { error_data: { messaging_product: "whatsapp", details } } : {}),
+        ...(usuario ? { is_transient: false, error_user_title: message, error_user_msg: usuario } : {}),
         fbtrace_id: randomBytes(12).toString("base64url"),
       },
     },
@@ -107,6 +110,10 @@ export const ERRORES = {
   132000: {
     message: "Template param count mismatch",
     details: "Number of parameters does not match the expected number of params.",
+  },
+  132012: {
+    message: "Parameter format does not match format in the created template",
+    details: "Variable parameter values formatted incorrectly.",
   },
   132001: {
     message: "Template does not exist",

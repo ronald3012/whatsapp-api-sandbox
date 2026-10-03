@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "pruebas": "node pruebas/aislamiento.mjs && node pruebas/telefonos.mjs && node pruebas/limites.mjs"
+    "pruebas": "node pruebas/aislamiento.mjs && node pruebas/telefonos.mjs && node pruebas/limites.mjs && node pruebas/plantillas-media.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",

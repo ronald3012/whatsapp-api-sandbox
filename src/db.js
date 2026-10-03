@@ -181,3 +181,40 @@ if (!db.prepare(`SELECT 1 FROM duenos WHERE id = 'local'`).get() &&
   db.prepare(`INSERT INTO duenos (id, nombre, clave, creado) VALUES (?, ?, ?, ?)`)
     .run("local", "Pruebas locales", "sb_" + randomBytes(24).toString("base64url"), Date.now());
 }
+
+/**
+ * La app de Meta de cada cuenta y las subidas reanudables.
+ *
+ * Una plantilla con encabezado de imagen, video o documento no se crea con un
+ * enlace: Meta pide antes subir una muestra por la «Resumable Upload API»
+ * (`POST /{app-id}/uploads` → `POST /upload:{sesión}`), que cuelga de la APP y
+ * no del número ni de la cuenta de negocio. Por eso cada cuenta tiene aquí su
+ * `app_id`: si la plataforma usa otro, la subida falla igual que en Meta.
+ *
+ * `handle` es lo que Meta devuelve al terminar (`{"h": "4::..."}`) y lo que
+ * va en `example.header_handle` de la plantilla. `token_publico` hace de la URL
+ * firmada de scontent.whatsapp.net con la que Meta devuelve la muestra al
+ * listar las plantillas.
+ */
+try { db.exec(`ALTER TABLE cuentas ADD COLUMN app_id TEXT`); } catch { /* ya estaba */ }
+db.exec(`
+CREATE TABLE IF NOT EXISTS subidas (
+  id            TEXT PRIMARY KEY,          -- lo que va detrás de «upload:»
+  dueno         TEXT NOT NULL,
+  cuenta_id     TEXT NOT NULL REFERENCES cuentas(id) ON DELETE CASCADE,
+  app_id        TEXT NOT NULL,
+  nombre        TEXT,
+  largo         INTEGER NOT NULL,          -- file_length declarado
+  tipo          TEXT NOT NULL,             -- file_type declarado
+  recibido      INTEGER NOT NULL DEFAULT 0,
+  ruta          TEXT NOT NULL,
+  handle        TEXT UNIQUE,               -- null hasta que llega el último byte
+  token_publico TEXT UNIQUE,
+  creada        INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ediciones_plantilla (
+  -- Meta deja editar una aprobada 1 vez cada 24 h y 10 en 30 días.
+  plantilla_id TEXT NOT NULL REFERENCES plantillas(id) ON DELETE CASCADE,
+  cuando       INTEGER NOT NULL
+);
+`);

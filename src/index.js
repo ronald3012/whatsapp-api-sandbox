@@ -10,7 +10,7 @@
  */
 import express from "express";
 import { resolve } from "node:path";
-import { graph } from "./graph.js";
+import { graph, servirMuestra } from "./graph.js";
 import { panel } from "./panel.js";
 import { negocios } from "./negocios.js";
 import { conectarSSE } from "./eventos.js";
@@ -77,6 +77,10 @@ app.get("/panel/eventos", (req, res) => {
    así que no hay nada que aislar. Van ANTES del panel, que exige clave. */
 app.use("/caras", express.static(CARPETA_CARAS, { maxAge: "7d" }));
 app.get("/panel/caras", (_req, res) => res.json(carasDisponibles()));
+/* Las muestras de los encabezados de plantilla, sin token: hacen de la URL
+   firmada de scontent.whatsapp.net que Meta devuelve al listar plantillas.
+   El nombre es un azar de 24 bytes, igual de imposible de adivinar. */
+app.get("/muestras/:token", servirMuestra);
 app.use("/panel", panel);
 app.use(express.static(resolve(process.cwd(), "public")));
 

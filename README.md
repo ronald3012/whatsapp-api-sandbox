@@ -115,6 +115,8 @@ registro de webhooks entregados con su código HTTP, y las credenciales.
 | Errores | Con la forma de Meta (`error.code`, `error_data.details`), no un 400 pelado |
 | Ventana de 24h | **Sola**: pasadas 24h del último mensaje del cliente, solo entran plantillas aprobadas. Es el fallo más común en producción |
 | Plantillas | Nacen en `PENDING`; se comprueba que existan, estén aprobadas y que los `{{1}}` cuadren con los parámetros (132001 / 132000) |
+| Encabezado de imagen, video o documento | La muestra se sube por la subida reanudable (`POST /{app-id}/uploads` → `POST /upload:…` → `{h}`; `GET /debug_token` da el `app_id`). Crear o editar sin ese `h` → 100 / 2388047; al listar, la muestra vuelve como URL descargable; enviar sin el archivo del encabezado → 132012 |
+| Editar plantillas | `POST /{template-id}`: solo APPROVED/REJECTED/PAUSED, sin cambiar la categoría de una aprobada, una vez cada 24 h y diez en 30 días; vuelve a `PENDING` |
 | Reentrega duplicada | El mismo mensaje otra vez con su mismo id, como cuando Meta reintenta —hasta 7 días—. Ejercita el dedupe de tu plataforma |
 | Reacciones y botones | El cliente reacciona a un mensaje o pulsa un botón: dos caminos que casi nadie prueba |
 | Catálogo y carrito | `product_catalogs` y `products` se dejan leer —Meta se los niega a un negocio pequeño— y el cliente puede mandar un carrito |
@@ -219,10 +221,11 @@ Está pensado para que varias personas lo usen a la vez, pero antes de exponerlo
 Con el sandbox levantado:
 
 ```bash
-npm run pruebas              # las tres de abajo, de una
+npm run pruebas              # las cuatro de abajo, de una
 node pruebas/aislamiento.mjs # que un negocio no llegue a lo de otro
 node pruebas/telefonos.mjs   # números imposibles
 node pruebas/limites.mjs     # 4096 caracteres, medios que no existen
+node pruebas/plantillas-media.mjs # subida reanudable, encabezados de media y edición
 ```
 
 `aislamiento.mjs` es la que más importa antes de exponerlo: toma las

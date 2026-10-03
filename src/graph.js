@@ -7,8 +7,9 @@
  * atajo («total, la plataforma solo lee el id») convierte el sandbox en una
  * variante del mundo real, y entonces lo que se ensaya no vale.
  */
-import { Router } from "express";
-import { createReadStream, writeFileSync, mkdirSync } from "node:fs";
+import express, { Router } from "express";
+import { createReadStream, writeFileSync, mkdirSync, appendFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { resolve } from "node:path";
 import multer from "multer";
 import { db } from "./db.js";
@@ -57,7 +58,9 @@ const responderError = (res, e) => res.status(e.status).json(e.cuerpo);
  */
 function autenticar(req, res, next) {
   const cabecera = req.get("authorization") || "";
-  const token = cabecera.replace(/^Bearer\s+/i, "").trim() ||
+  /* La subida reanudable de Meta pide «Authorization: OAuth <token>», no
+     «Bearer»: las dos formas valen, como allá. */
+  const token = cabecera.replace(/^(Bearer|OAuth)\s+/i, "").trim() ||
     String(req.query.access_token || "");
   if (!token) {
     return responderError(res, errorMeta(190, "An access token is required to request this resource.", { status: 401 }));
@@ -72,6 +75,117 @@ function autenticar(req, res, next) {
 
 const numeroDe = (id, cuenta) =>
   db.prepare(`SELECT * FROM numeros WHERE id = ? AND cuenta_id = ?`).get(id, cuenta.id);
+
+/* ─────────────── La app, y la subida reanudable de muestras ─────────────── */
+
+/**
+ * El id de la app de Meta de esta cuenta. Nace la primera vez que se pide: las
+ * cuentas creadas antes de existir esto no lo tenían.
+ */
+export function appIdDe(cuenta) {
+  if (cuenta.app_id) return cuenta.app_id;
+  const id = nuevoId(15);
+  db.prepare(`UPDATE cuentas SET app_id = ? WHERE id = ? AND app_id IS NULL`).run(id, cuenta.id);
+  return db.prepare(`SELECT app_id FROM cuentas WHERE id = ?`).get(cuenta.id).app_id;
+}
+
+/**
+ * `GET /debug_token?input_token=…` — de qué app es un token.
+ *
+ * Meta lo documenta con un token de app o de un desarrollador de esa app como
+ * `access_token`. Aquí basta con un token válido del mismo dueño: lo que se
+ * ensaya es leer `data.app_id`, no el sistema de permisos de Meta.
+ */
+graph.get("/debug_token", autenticar, (req, res) => {
+  const entrada = String(req.query.input_token || "");
+  const cuenta = db.prepare(`SELECT * FROM cuentas WHERE token = ? AND dueno = ?`).get(entrada, req.cuenta.dueno);
+  if (!cuenta) {
+    return res.json({ data: { is_valid: false, error: { code: 190, message: "Invalid OAuth access token." } } });
+  }
+  res.json({
+    data: {
+      app_id: appIdDe(cuenta),
+      type: "SYSTEM_USER",
+      application: "wa-sandbox",
+      is_valid: true,
+      scopes: ["whatsapp_business_management", "whatsapp_business_messaging"],
+    },
+  });
+});
+
+/**
+ * Lo que la subida reanudable acepta, según la guía de Meta
+ * (developers.facebook.com/docs/graph-api/guides/upload): pdf, jpeg, jpg, png
+ * y mp4. Nada más.
+ */
+const TIPOS_SUBIDA = new Set(["application/pdf", "image/jpeg", "image/jpg", "image/png", "video/mp4"]);
+
+/** `POST /{app-id}/uploads?file_name&file_length&file_type` → `{id: "upload:…"}`. */
+graph.post("/:appId/uploads", autenticar, (req, res) => {
+  if (req.params.appId !== appIdDe(req.cuenta)) {
+    return responderError(res, errorMeta(100,
+      `Unsupported post request. Object with ID '${req.params.appId}' does not exist, cannot be loaded due to missing permissions, or does not support this operation.`,
+      { subcode: 33, status: 400 }));
+  }
+  const q = { ...req.query, ...(req.body && typeof req.body === "object" ? req.body : {}) };
+  const largo = Number(q.file_length);
+  const tipo = String(q.file_type || "").toLowerCase();
+  if (!Number.isInteger(largo) || largo <= 0) {
+    return responderError(res, errorMeta(100, "(#100) The parameter file_length is required"));
+  }
+  if (!TIPOS_SUBIDA.has(tipo)) {
+    return responderError(res, errorMeta(100, `(#100) Param file_type must be one of {application/pdf, image/jpeg, image/jpg, image/png, video/mp4}`));
+  }
+  const id = randomBytes(24).toString("base64url");
+  db.prepare(
+    `INSERT INTO subidas (id, dueno, cuenta_id, app_id, nombre, largo, tipo, recibido, ruta, creada)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+  ).run(id, req.cuenta.dueno, req.cuenta.id, req.params.appId, String(q.file_name || "") || null,
+        largo, tipo, resolve(MEDIOS, `subida_${id}`), Date.now());
+  res.json({ id: `upload:${id}` });
+});
+
+const subidaDe = (param, cuenta) => {
+  const id = String(param).replace(/^upload:/, "");
+  return db.prepare(`SELECT * FROM subidas WHERE id = ? AND dueno = ?`).get(id, cuenta.dueno);
+};
+
+/** `GET /upload:{sesión}` → cuánto ha llegado, para reanudar. */
+graph.get(/^\/(upload:[^/]+)$/, autenticar, (req, res) => {
+  const s = subidaDe(req.params[0], req.cuenta);
+  if (!s) return responderError(res, errorMeta(100, "Unsupported get request. Object with ID does not exist", { subcode: 33, status: 404 }));
+  res.json({ id: `upload:${s.id}`, file_offset: s.recibido });
+});
+
+/**
+ * `POST /upload:{sesión}` con `file_offset` y el binario → `{h: "…"}`.
+ *
+ * El cuerpo es el archivo crudo, no JSON ni multipart: así lo manda la guía
+ * (`--data-binary @archivo`).
+ */
+graph.post(/^\/(upload:[^/]+)$/, express.raw({ type: () => true, limit: "110mb" }), autenticar, (req, res) => {
+  const s = subidaDe(req.params[0], req.cuenta);
+  if (!s) return responderError(res, errorMeta(100, "Unsupported post request. Object with ID does not exist", { subcode: 33, status: 404 }));
+  const desde = Number(req.get("file_offset"));
+  if (!Number.isInteger(desde)) return responderError(res, errorMeta(100, "(#100) The header file_offset is required"));
+  if (desde !== s.recibido) {
+    return responderError(res, errorMeta(100, `(#100) file_offset ${desde} does not match the uploaded offset ${s.recibido}`));
+  }
+  const trozo = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+  if (desde + trozo.length > s.largo) {
+    return responderError(res, errorMeta(100, "(#100) Uploaded data exceeds the declared file_length"));
+  }
+  if (trozo.length) appendFileSync(s.ruta, trozo);
+  const recibido = desde + trozo.length;
+  if (recibido < s.largo) {
+    db.prepare(`UPDATE subidas SET recibido = ? WHERE id = ?`).run(recibido, s.id);
+    return res.json({ id: `upload:${s.id}`, file_offset: recibido });
+  }
+  const handle = "4::" + randomBytes(48).toString("base64");
+  db.prepare(`UPDATE subidas SET recibido = ?, handle = ?, token_publico = ? WHERE id = ?`)
+    .run(recibido, handle, randomBytes(24).toString("base64url"), s.id);
+  res.json({ h: handle });
+});
 
 /* ─────────────────────── Mensajes ─────────────────────── */
 
@@ -230,6 +344,30 @@ graph.post("/:phoneNumberId/messages", autenticar, async (req, res) => {
       return responderError(res, errorMeta(132000, e.message, {
         details: `${e.details} (esperaba ${huecos.size}, llegaron ${dados})`, status: 400 }));
     }
+    /* Un encabezado de imagen, video o documento NO viaja solo: la muestra
+       de la plantilla es para la revisión, y al enviar hay que mandar el
+       archivo. Sin él Meta contesta 132012 «header: Format mismatch, expected
+       IMAGE, received UNKNOWN» (visto en producción; ver meta-runtime.ts). */
+    const cabPl = (JSON.parse(pl.componentes || "[]")).find((c) => String(c.type).toUpperCase() === "HEADER");
+    const fmtPl = String(cabPl?.format || "TEXT").toUpperCase();
+    if (FORMATO_MEDIO[fmtPl]) {
+      const par = (b.template?.components || [])
+        .find((c) => String(c.type).toUpperCase() === "HEADER")?.parameters?.[0];
+      const recibido = String(par?.type || "UNKNOWN").toUpperCase();
+      if (recibido !== fmtPl) {
+        const e = ERRORES[132012];
+        return responderError(res, errorMeta(132012, e.message, {
+          details: `header: Format mismatch, expected ${fmtPl}, received ${recibido}`, status: 400 }));
+      }
+      const medio = par[par.type] || {};
+      if (medio.id && !db.prepare(`SELECT 1 FROM medios WHERE id = ? AND dueno = ?`).get(String(medio.id), req.cuenta.dueno)) {
+        return responderError(res, errorMeta(100, "Unsupported post request. Object with ID does not exist",
+          { subcode: 33, status: 404 }));
+      }
+      if (!medio.id && !medio.link) {
+        return responderError(res, errorMeta(100, `Param template['components'][0]['parameters'][0]['${par.type}'] requires id or link`));
+      }
+    }
   }
 
   dejarDeEscribir(numero.id);
@@ -332,7 +470,14 @@ function textoDePlantilla(b, cuentaId) {
   const pie = de("FOOTER");
   const botones = de("BUTTONS")?.buttons || [];
 
+  /* El archivo del encabezado, si lo lleva: para que la interfaz lo pinte como
+     lo vería el cliente, encima del texto. */
+  const parCab = (dados.find((c) => String(c.type).toUpperCase() === "HEADER")?.parameters || [])[0];
+  const medio = parCab && ["image", "video", "document"].includes(parCab.type) && parCab[parCab.type]?.id
+    ? { tipo: parCab.type, id: String(parCab[parCab.type].id), filename: parCab[parCab.type].filename || null }
+    : null;
   return {
+    medio,
     cabecera: cabecera?.text ? rellenar(cabecera.text, paramsDe("HEADER")) : "",
     cuerpo: cuerpo?.text ? rellenar(cuerpo.text, paramsDe("BODY")) : "",
     pie: pie?.text || "",
@@ -455,13 +600,62 @@ graph.post("/:phoneNumberId/register", autenticar, (req, res) => {
 
 /* ─────────────────────── Plantillas ─────────────────────── */
 
+/**
+ * Los encabezados de imagen, video o documento.
+ *
+ * Meta exige que la muestra llegue como el `h` de una subida reanudable en
+ * `example.header_handle[0]`, y que el archivo case con el formato. Aquí solo
+ * vale un `h` que este sandbox haya entregado a ESTE dueño.
+ *
+ * Una URL —la que devuelve el propio GET de plantillas— se rechaza. La
+ * documentación de Meta no dice si la acepta al editar; ante la duda, el clon
+ * se queda con la respuesta estricta: si la plataforma ensaya aquí, ensaya el
+ * camino que seguro funciona allá (volver a subir el archivo).
+ */
+const FORMATO_MEDIO = {
+  IMAGE: ["image/jpeg", "image/jpg", "image/png"],
+  VIDEO: ["video/mp4"],
+  DOCUMENT: ["application/pdf"],
+};
+
+function errorDeEncabezado(componentes, dueno) {
+  const cab = (componentes || []).find((c) => String(c?.type).toUpperCase() === "HEADER");
+  if (!cab) return null;
+  const fmt = String(cab.format || "TEXT").toUpperCase();
+  if (!FORMATO_MEDIO[fmt]) return null;
+  const h = cab.example?.header_handle?.[0];
+  const mal = (msg) => errorMeta(100, "Invalid parameter", { subcode: 2388047, status: 400, usuario: msg });
+  if (!h) return mal(`A ${fmt} header requires example.header_handle with an uploaded media handle.`);
+  const sub = db.prepare(`SELECT * FROM subidas WHERE handle = ? AND dueno = ?`).get(String(h), dueno);
+  if (!sub) return mal("The media handle in example.header_handle is not valid. Upload the sample with the Resumable Upload API.");
+  if (!FORMATO_MEDIO[fmt].includes(sub.tipo)) {
+    return mal(`The uploaded sample (${sub.tipo}) does not match the header format ${fmt}.`);
+  }
+  return null;
+}
+
+/** El GET devuelve la muestra como URL, igual que Meta (scontent.whatsapp.net). */
+function componentesParaListar(componentes, req) {
+  return componentes.map((c) => {
+    const h = c?.example?.header_handle?.[0];
+    if (String(c?.type).toUpperCase() !== "HEADER" || !h) return c;
+    const sub = db.prepare(`SELECT token_publico FROM subidas WHERE handle = ?`).get(String(h));
+    if (!sub) return c;
+    return { ...c, example: { ...c.example, header_handle: [`${publica(req)}/muestras/${sub.token_publico}`] } };
+  });
+}
+
 graph.get("/:wabaId/message_templates", autenticar, (req, res) => {
   if (req.params.wabaId !== req.cuenta.id) {
     return responderError(res, errorMeta(100, "Unsupported get request. Object with ID does not exist", { subcode: 33, status: 404 }));
   }
+  /* Meta filtra por `name` (y la plataforma lo usa para buscar el id antes de
+     editar). Sin el filtro aquí, la búsqueda devolvía todas y acertaba de
+     casualidad. */
+  const nombre = req.query.name ? String(req.query.name) : null;
   const filas = db.prepare(
-    `SELECT * FROM plantillas WHERE cuenta_id = ? ORDER BY creada DESC`,
-  ).all(req.params.wabaId);
+    `SELECT * FROM plantillas WHERE cuenta_id = ? ${nombre ? "AND nombre = ?" : ""} ORDER BY creada DESC`,
+  ).all(...(nombre ? [req.params.wabaId, nombre] : [req.params.wabaId]));
   res.json({
     data: filas.map((p) => ({
       id: p.id,
@@ -469,7 +663,7 @@ graph.get("/:wabaId/message_templates", autenticar, (req, res) => {
       language: p.idioma,
       category: p.categoria,
       status: p.estado,
-      components: JSON.parse(p.componentes),
+      components: componentesParaListar(JSON.parse(p.componentes), req),
     })),
     paging: { cursors: { before: "", after: "" } },
   });
@@ -481,6 +675,8 @@ graph.post("/:wabaId/message_templates", autenticar, (req, res) => {
   }
   const { name, language, category, components } = req.body || {};
   if (!name || !language) return responderError(res, errorMeta(100, "Params name and language are required"));
+  const malEnc = errorDeEncabezado(components, req.cuenta.dueno);
+  if (malEnc) return responderError(res, malEnc);
   const id = nuevoId(15);
   db.prepare(
     `INSERT INTO plantillas (id, cuenta_id, dueno, nombre, idioma, categoria, estado, componentes, creada)
@@ -491,6 +687,61 @@ graph.post("/:wabaId/message_templates", autenticar, (req, res) => {
   // eres tú desde la interfaz, que es lo que contra Meta no se puede ensayar.
   res.json({ id, status: "PENDING", category: category || "UTILITY" });
 });
+
+/**
+ * `POST /{template-id}` — editar una plantilla.
+ *
+ * Lo que documenta Meta (gestión de plantillas): solo APPROVED, REJECTED o
+ * PAUSED; se cambian `components` (TODOS se reemplazan), `category` o el
+ * tiempo de vida; a una aprobada no se le cambia la categoría; una aprobada se
+ * edita 1 vez cada 24 h y 10 en 30 días. Los textos de error de esos límites
+ * Meta no los publica: aquí van con código 100 y un mensaje claro.
+ *
+ * Tras editar queda PENDING hasta que la apruebes en la interfaz: Meta la
+ * vuelve a revisar, y esa revisión aquí la haces tú.
+ */
+graph.post("/:templateId", autenticar, (req, res, next) => {
+  const p = db.prepare(`SELECT * FROM plantillas WHERE id = ? AND cuenta_id = ? AND dueno = ?`)
+    .get(req.params.templateId, req.cuenta.id, req.cuenta.dueno);
+  if (!p) return next();
+  const { components, category } = req.body || {};
+  const mal = (msg) => responderError(res, errorMeta(100, "Invalid parameter", { status: 400, usuario: msg }));
+  if (!["APPROVED", "REJECTED", "PAUSED"].includes(p.estado)) {
+    return mal("Only templates with an APPROVED, REJECTED, or PAUSED status can be edited.");
+  }
+  if (!components && !category) return mal("Nothing to edit: send components or category.");
+  if (category && p.estado === "APPROVED" && category !== p.categoria) {
+    return mal("The category of an approved template can't be edited.");
+  }
+  if (p.estado === "APPROVED") {
+    const dia = db.prepare(`SELECT count(*) n FROM ediciones_plantilla WHERE plantilla_id = ? AND cuando > ?`)
+      .get(p.id, Date.now() - 24 * 3600 * 1000).n;
+    const mes = db.prepare(`SELECT count(*) n FROM ediciones_plantilla WHERE plantilla_id = ? AND cuando > ?`)
+      .get(p.id, Date.now() - 30 * 24 * 3600 * 1000).n;
+    if (dia >= 1) return mal("Approved templates can be edited only once in a 24-hour window.");
+    if (mes >= 10) return mal("Approved templates can be edited up to 10 times in a 30-day window.");
+  }
+  if (components) {
+    if (!Array.isArray(components) || !components.length) return mal("Param components must be a non-empty array.");
+    const malEnc = errorDeEncabezado(components, req.cuenta.dueno);
+    if (malEnc) return responderError(res, malEnc);
+  }
+  if (p.estado === "APPROVED") {
+    db.prepare(`INSERT INTO ediciones_plantilla (plantilla_id, cuando) VALUES (?, ?)`).run(p.id, Date.now());
+  }
+  db.prepare(`UPDATE plantillas SET componentes = ?, categoria = ?, estado = 'PENDING' WHERE id = ?`)
+    .run(components ? JSON.stringify(components) : p.componentes, category || p.categoria, p.id);
+  res.json({ success: true });
+});
+
+/** La muestra servida sin token, como una URL firmada de scontent. */
+export function servirMuestra(req, res) {
+  const s = db.prepare(`SELECT * FROM subidas WHERE token_publico = ? AND handle IS NOT NULL`).get(String(req.params.token));
+  if (!s) return res.status(404).end();
+  res.setHeader("content-type", s.tipo === "image/jpg" ? "image/jpeg" : s.tipo);
+  res.setHeader("x-content-type-options", "nosniff");
+  createReadStream(s.ruta).pipe(res);
+}
 
 /* ─────────────────────── Catálogo ─────────────────────── */
 
