@@ -1,0 +1,1036 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sandbox QR</title>
+<style>
+:root {
+  --fondo-app: #eae6df; --panel: #ffffff; --panel-gris: #f0f2f5; --borde: #e9edef; --texto: #111b21; --suave: #667781;
+  --verde: #00a884; --verde-oscuro: #008069; --saliente: #d9fdd3; --entrante: #ffffff; --chat-fondo: #efeae2;
+  --sel: #f0f2f5; --hover: #f5f6f6; --peligro: #ea0038; --aviso: #b07800; --azul: #53bdeb; --cita: rgba(11,20,26,.05);
+  --sombra: 0 1px .5px rgba(11,20,26,.13); --banner: #fff7d6; --icono: #54656f; --tic: #8696a0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --verde-oscuro: #00a884;
+    --fondo-app: #0c1317; --panel: #111b21; --panel-gris: #202c33; --borde: #222d34; --texto: #e9edef; --suave: #8696a0;
+    --saliente: #005c4b; --entrante: #202c33; --chat-fondo: #0b141a; --sel: #2a3942; --hover: #202c33;
+    --cita: rgba(255,255,255,.06); --sombra: 0 1px .5px rgba(11,20,26,.13); --banner: #2a3942; --icono: #aebac1; --tic: #8696a0;
+  }
+}
+:root[data-theme="dark"] {
+  --fondo-app: #0c1317; --panel: #111b21; --panel-gris: #202c33; --borde: #222d34; --texto: #e9edef; --suave: #8696a0;
+  --saliente: #005c4b; --entrante: #202c33; --chat-fondo: #0b141a; --sel: #2a3942; --hover: #202c33;
+  --cita: rgba(255,255,255,.06); --banner: #2a3942; --icono: #aebac1; --tic: #8696a0;
+  --verde-oscuro: #00a884; --sombra: 0 1px .5px rgba(11,20,26,.13);
+}
+:root[data-theme="dark"] dialog::backdrop { background: rgba(11,20,26,.85); }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--fondo-app); color: var(--texto); font: 14.2px/1.4 "Segoe UI", "Helvetica Neue", Helvetica, system-ui, -apple-system, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.app { display: grid; grid-template-columns: clamp(300px, 30%, 460px) 1fr; height: 100dvh; background: var(--panel); box-shadow: 0 6px 18px rgba(11,20,26,.05); }
+aside { background: var(--panel); border-right: 1px solid var(--borde); display: flex; flex-direction: column; min-height: 0; }
+.cabeza { height: 59px; padding: 10px 16px; background: var(--panel-gris); display: flex; align-items: center; gap: 12px; }
+.cabeza .yo { flex: 1; min-width: 0; }
+.cabeza .yo b { display: block; font-weight: 500; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cabeza .yo span { color: var(--suave); font-size: 12.5px; display: flex; gap: 6px; align-items: center; }
+.ico { border: 0; background: none; color: var(--icono); width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; padding: 0; }
+.ico:hover, .ico[aria-expanded="true"] { background: rgba(127,127,127,.15); }
+.ico svg { width: 22px; height: 22px; }
+.punto { width: 8px; height: 8px; border-radius: 50%; background: var(--tic); display: inline-block; }
+.punto.conectada { background: var(--verde); }
+.punto.esperando_qr { background: var(--aviso); }
+.banner { background: var(--banner); padding: 14px 16px; display: flex; gap: 12px; align-items: center; font-size: 13.5px; }
+.banner .circulo { width: 44px; height: 44px; border-radius: 50%; background: var(--panel); display: grid; place-items: center; color: var(--aviso); flex: none; }
+.banner b { display: block; font-weight: 500; }
+.banner span { color: var(--suave); }
+.banner button { border: 0; background: none; color: var(--verde-oscuro); padding: 0; font-weight: 500; }
+.buscar { padding: 7px 12px; border-bottom: 1px solid var(--borde); }
+.buscar label { display: flex; align-items: center; gap: 14px; background: var(--panel-gris); border-radius: 8px; padding: 0 12px; height: 35px; color: var(--suave); }
+.buscar svg { width: 18px; height: 18px; }
+.buscar input { border: 0; background: none; outline: 0; flex: 1; min-width: 0; }
+.chats { overflow-y: auto; flex: 1; min-height: 0; }
+.chat-item { width: 100%; text-align: left; border: 0; background: var(--panel); padding: 0 0 0 13px; display: flex; gap: 13px; align-items: center; height: 72px; }
+.chat-item:hover { background: var(--hover); }
+.chat-item.sel { background: var(--sel); }
+.avatar { width: 49px; height: 49px; border-radius: 50%; display: grid; place-items: center; font-weight: 500; font-size: 17px; color: #fff; flex: none; }
+.avatar svg { width: 26px; height: 26px; }
+.avatar.chica { width: 40px; height: 40px; font-size: 15px; }
+.chat-item .t { min-width: 0; flex: 1; border-bottom: 1px solid var(--borde); height: 100%; display: flex; flex-direction: column; justify-content: center; padding-right: 15px; }
+.chat-item .arriba { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
+.chat-item .t b { font-weight: 400; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-item .t time { color: var(--suave); font-size: 12px; flex: none; }
+.chat-item .t span { color: var(--suave); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 3px; align-items: center; }
+.chat-item .t span svg { width: 16px; height: 16px; }
+.vacio { color: var(--suave); padding: 24px 20px; font-size: 14px; text-align: center; }
+main { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--chat-fondo); }
+.barra { background: var(--panel-gris); padding: 10px 16px; display: flex; align-items: center; gap: 13px; height: 59px; border-left: 1px solid var(--borde); }
+.barra .titulo { flex: 1; min-width: 0; }
+.barra .titulo b { display: block; font-weight: 500; font-size: 16px; }
+.barra .titulo span { color: var(--suave); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.mensajes { flex: 1; overflow-y: auto; padding: 20px 7% 8px; display: flex; flex-direction: column; gap: 2px;
+  background-color: var(--chat-fondo);
+  background-image: radial-gradient(rgba(127,127,127,.09) 1px, transparent 1.2px), radial-gradient(rgba(127,127,127,.06) 1px, transparent 1.2px);
+  background-size: 26px 26px, 26px 26px; background-position: 0 0, 13px 13px; }
+.msg { max-width: min(560px, 65%); align-self: flex-start; background: var(--entrante); border-radius: 7.5px; padding: 6px 7px 8px 9px; box-shadow: var(--sombra); position: relative; margin-top: 2px; }
+.msg.primero { border-top-left-radius: 0; margin-top: 10px; }
+.msg.primero::before { content: ""; position: absolute; top: 0; left: -8px; border: 0 solid transparent; border-top: 8px solid var(--entrante); border-left: 8px solid transparent; }
+.msg.contacto { align-self: flex-end; background: var(--saliente); }
+.msg.contacto.primero { border-top-left-radius: 7.5px; border-top-right-radius: 0; }
+.msg.contacto.primero::before { left: auto; right: -8px; border-top-color: var(--saliente); border-left: 0; border-right: 8px solid transparent; }
+.msg .autor { font-size: 12.8px; font-weight: 500; margin-bottom: 2px; }
+.msg .cuerpo { white-space: pre-wrap; word-wrap: break-word; }
+.msg .cuerpo { display: block; }
+.msg .cuerpo b { font-weight: 600; }
+.msg .cuerpo code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+.msg .cuerpo a { color: var(--azul); }
+.msg .pie { display: flex; justify-content: flex-end; gap: 3px; align-items: center; font-size: 11px; color: var(--suave); margin: 1px 0 -3px 12px; }
+.msg .pie svg { width: 16px; height: 16px; color: var(--tic); }
+.msg .pie .leido svg { color: var(--azul); }
+.msg .cita { border-left: 4px solid var(--verde); background: var(--cita); border-radius: 7.5px; padding: 6px 10px; font-size: 13.2px; margin: 0 0 4px -3px; color: var(--suave); }
+.msg .cita b { color: var(--verde-oscuro); font-size: 12.8px; font-weight: 500; display: block; }
+.msg img, .msg video { max-width: 330px; max-height: 330px; border-radius: 6px; display: block; margin: -2px -3px 4px -5px; }
+.msg audio { width: 260px; }
+.msg .doc { display: flex; gap: 10px; align-items: center; padding: 10px; background: var(--cita); border-radius: 6px; margin-bottom: 4px; color: inherit; text-decoration: none; min-width: 240px; }
+.msg .aviso { color: var(--aviso); font-size: 12.5px; display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+.msg .aviso svg { width: 16px; height: 16px; }
+.msg .borrado { color: var(--suave); font-style: italic; display: inline-flex; gap: 6px; align-items: center; }
+.msg .borrado svg { width: 16px; height: 16px; }
+.msg .reacciones { position: absolute; bottom: -16px; left: 8px; background: var(--panel); border-radius: 999px; padding: 1px 6px; font-size: 14px; box-shadow: 0 1px 3px rgba(11,20,26,.2); }
+.msg.contacto .reacciones { left: auto; right: 8px; }
+.msg.con-reaccion { margin-bottom: 18px; }
+.encuesta { min-width: 280px; max-width: 360px; padding: 2px 2px 0; }
+.encuesta .pregunta { font-weight: 600; font-size: 15px; margin-bottom: 4px; white-space: pre-wrap; word-wrap: break-word; }
+.encuesta .nota { color: var(--suave); font-size: 13px; display: flex; gap: 5px; align-items: center; margin-bottom: 10px; }
+.encuesta .nota svg { width: 15px; height: 15px; }
+.encuesta .op { display: grid; grid-template-columns: 24px 1fr auto; grid-template-rows: auto 6px; column-gap: 10px; row-gap: 6px; align-items: center; width: 100%; border: 0; background: none; padding: 6px 0 8px; text-align: left; }
+.encuesta .op:disabled { cursor: default; }
+.encuesta .marca { grid-row: 1; width: 21px; height: 21px; border: 2px solid var(--tic); border-radius: 50%; display: grid; place-items: center; color: #fff; }
+.encuesta.varias .marca { border-radius: 5px; }
+.encuesta .marca svg { width: 14px; height: 14px; stroke-width: 3; opacity: 0; }
+.encuesta .op.elegida .marca { background: var(--verde); border-color: var(--verde); }
+.encuesta .op.elegida .marca svg { opacity: 1; }
+.encuesta .nombre { min-width: 0; overflow-wrap: anywhere; }
+.encuesta .derecha { display: flex; gap: 6px; align-items: center; color: var(--suave); font-size: 13.5px; }
+.encuesta .caritas { display: flex; }
+.encuesta .caritas span { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 8.5px; color: #fff; font-weight: 600; margin-left: -5px; border: 1.5px solid var(--entrante); }
+.msg.contacto .encuesta .caritas span { border-color: var(--saliente); }
+.encuesta .barra-voto { grid-column: 2 / 4; grid-row: 2; height: 6px; border-radius: 3px; background: var(--cita); overflow: hidden; }
+.encuesta .barra-voto i { display: block; height: 100%; background: var(--verde); border-radius: 3px; transition: width .25s; }
+.encuesta .ver-votos { display: block; width: calc(100% + 14px); margin: 4px -7px -8px -7px; padding: 10px; border: 0; border-top: 1px solid var(--borde); background: none; color: var(--verde-oscuro); font-weight: 500; text-align: center; border-radius: 0 0 7.5px 7.5px; }
+.encuesta .ver-votos:hover { background: var(--hover); }
+.encuesta .ver-votos:disabled { color: var(--suave); cursor: default; background: none; }
+.encuesta + .pie { margin-top: 10px; }
+.votos-lista h4 { margin: 14px 0 6px; font-weight: 500; display: flex; justify-content: space-between; }
+.votos-lista h4 span { color: var(--suave); font-weight: 400; font-size: 13px; }
+.votos-lista .quien { display: flex; gap: 10px; align-items: center; padding: 5px 0; }
+.votos-lista .quien .avatar { width: 30px; height: 30px; font-size: 12px; }
+.msg .mas { position: absolute; top: 2px; right: 2px; border: 0; border-radius: 50%; width: 24px; height: 24px; padding: 0; display: grid; place-items: center; color: var(--suave); background: radial-gradient(var(--entrante) 55%, transparent 75%); opacity: 0; }
+.msg.contacto .mas { background: radial-gradient(var(--saliente) 55%, transparent 75%); }
+.msg:hover .mas, .msg .mas:focus-visible { opacity: 1; }
+@media (hover: none) { .msg .mas { opacity: .8; } }
+.msg .mas svg { width: 18px; height: 18px; }
+.menu { position: fixed; z-index: 10; background: var(--panel); border-radius: 3px; padding: 9px 0; min-width: 200px; box-shadow: 0 2px 5px rgba(11,20,26,.26), 0 2px 10px rgba(11,20,26,.16); }
+.menu button { width: 100%; border: 0; background: none; text-align: left; padding: 10px 24px; display: flex; gap: 12px; align-items: center; font-size: 14.5px; }
+.menu button svg { width: 18px; height: 18px; color: var(--icono); }
+.menu button:hover { background: var(--hover); }
+.menu hr { border: 0; border-top: 1px solid var(--borde); margin: 6px 0; }
+.menu .emojis { display: flex; gap: 2px; padding: 4px 14px 8px; border-bottom: 1px solid var(--borde); margin-bottom: 6px; }
+.menu .emojis button { width: auto; padding: 4px 6px; font-size: 22px; border-radius: 50%; }
+.escribiendo { color: var(--verde); font-size: 13px; padding: 0 7% 4px; min-height: 22px; }
+.redactar { background: var(--panel-gris); padding: 5px 16px 8px; display: grid; gap: 6px; }
+.redactar .citando { display: flex; gap: 8px; align-items: center; background: var(--panel); border-left: 4px solid var(--verde); border-radius: 7.5px; padding: 8px 12px; font-size: 13.5px; margin-top: 5px; }
+.redactar .citando .q { flex: 1; min-width: 0; }
+.redactar .citando .q b { display: block; color: var(--verde-oscuro); font-weight: 500; font-size: 13px; }
+.redactar .citando .q span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--suave); }
+.redactar .fila-entrada { display: flex; align-items: flex-end; gap: 8px; }
+.redactar textarea { flex: 1; resize: none; min-height: 42px; max-height: 140px; border: 0; border-radius: 8px; background: var(--panel); padding: 10px 12px; outline: 0; }
+.redactar .opciones { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--suave); padding-left: 52px; }
+.redactar .opciones select { border: 0; background: var(--panel); border-radius: 6px; padding: 4px 8px; }
+.redactar label.chk { display: inline-flex; gap: 6px; align-items: center; }
+.adjunto { font-size: 13px; color: var(--suave); display: flex; gap: 6px; align-items: center; background: var(--panel); border-radius: 7.5px; padding: 6px 10px; margin-top: 5px; }
+.adjunto svg { width: 18px; height: 18px; }
+.bienvenida { flex: 1; display: grid; place-items: center; text-align: center; color: var(--suave); padding: 24px; background: var(--panel-gris); border-left: 1px solid var(--borde); border-bottom: 6px solid var(--verde); }
+.bienvenida div { max-width: 460px; }
+.bienvenida .dibujo { width: 72px; height: 72px; margin: 0 auto 24px; color: var(--tic); }
+.bienvenida .dibujo svg { width: 72px; height: 72px; stroke-width: 1.2; }
+.bienvenida b { color: var(--texto); display: block; font-size: 30px; font-weight: 300; margin-bottom: 14px; }
+dialog { border: 0; border-radius: 3px; background: var(--panel); color: var(--texto); padding: 22px 24px 20px; width: min(440px, calc(100vw - 32px)); box-shadow: 0 17px 50px rgba(11,20,26,.19), 0 12px 15px rgba(11,20,26,.24); }
+dialog::backdrop { background: rgba(255,255,255,.75); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) dialog::backdrop { background: rgba(11,20,26,.85); } }
+dialog h3 { margin: 0 0 16px; font-size: 20px; font-weight: 400; }
+dialog input[type=text], dialog textarea { width: 100%; border: 0; border-bottom: 2px solid var(--verde); background: none; padding: 8px 2px; outline: 0; }
+dialog .lista { max-height: 280px; overflow-y: auto; margin: 12px 0; display: grid; }
+dialog .lista label { display: flex; gap: 12px; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--borde); }
+dialog .acciones { display: flex; gap: 8px; justify-content: flex-end; margin-top: 22px; }
+.btn { border: 1px solid var(--borde); background: var(--panel); border-radius: 24px; padding: 8px 20px; color: var(--verde-oscuro); font-weight: 500; display: inline-flex; gap: 8px; align-items: center; }
+.btn svg { width: 18px; height: 18px; }
+.btn.primario { background: var(--verde); border-color: var(--verde); color: #fff; }
+.btn.peligro { color: var(--peligro); }
+.btn:focus-visible, .ico:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible, .chat-item:focus-visible { outline: 2px solid var(--verde); outline-offset: 1px; }
+.dispositivo { border-bottom: 1px solid var(--borde); padding: 14px 0; }
+.dispositivo:last-child { border-bottom: 0; }
+.dispositivo .nombre { display: flex; gap: 10px; align-items: center; font-size: 15.5px; }
+.dispositivo small { color: var(--suave); display: block; margin: 2px 0 0 18px; }
+.dispositivo .qr { margin-top: 12px; display: grid; gap: 12px; }
+.dispositivo .codigo { font-family: ui-monospace, monospace; font-size: 11px; color: var(--suave); word-break: break-all; max-height: 32px; overflow: hidden; background: var(--panel-gris); padding: 6px 8px; border-radius: 6px; }
+.dispositivo .acciones-linea { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.toast { position: fixed; bottom: 24px; left: 24px; background: #3b4a54; color: #fff; padding: 12px 18px; border-radius: 6px; font-size: 14px; z-index: 20; max-width: calc(100vw - 48px); box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.volver { display: none !important; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; }
+  .app.con-chat aside { display: none; }
+  .app:not(.con-chat) main { display: none; }
+  .volver { display: grid !important; }
+  .mensajes { padding: 14px 10px 8px; }
+  .msg { max-width: 85%; }
+  .redactar { padding: 5px 8px 8px; }
+  .redactar .opciones { padding-left: 0; }
+}
+dialog.visor { width: 100vw; height: 100dvh; max-width: none; max-height: none; padding: 0; margin: 0; border-radius: 0; background: rgba(11,20,26,.94); display: none; }
+dialog.visor[open] { display: grid; grid-template-rows: auto 1fr; }
+.visor-barra { display: flex; justify-content: flex-end; gap: 4px; padding: 10px 14px; }
+.visor-barra .ico { color: #e9edef; }
+.visor img { max-width: calc(100vw - 40px); max-height: calc(100dvh - 90px); margin: auto; object-fit: contain; }
+.msg .doc .ico { width: 34px; height: 34px; }
+.grabando { flex: 1; display: flex; align-items: center; gap: 12px; background: var(--panel); border-radius: 8px; padding: 0 14px; min-height: 42px; }
+.grabando .rojo { width: 10px; height: 10px; border-radius: 50%; background: #ea0038; }
+@media (prefers-reduced-motion: no-preference) { .grabando .rojo { animation: latir 1s infinite; } }
+@keyframes latir { 50% { opacity: .3; } }
+.grabando .tiempo { font-variant-numeric: tabular-nums; color: var(--texto); }
+.grabando .ayuda { color: var(--suave); font-size: 13px; flex: 1; }
+.ico[hidden], .btn[hidden] { display: none !important; }
+
+/* ── Cabecera de la línea: nombre y estado en dos renglones que no se parten ── */
+.cabeza { height: 64px; gap: 10px; }
+.cabeza .yo b { font-size: 15.5px; }
+.cabeza .yo > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.cabeza .yo > span .punto { display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.cabeza .acciones-cabeza { display: flex; gap: 2px; flex: none; }
+
+/* ── Filtros de la lista: como los de WhatsApp (Todos, Grupos…) ── */
+.filtros { display: flex; gap: 8px; padding: 8px 12px 10px; border-bottom: 1px solid var(--borde); }
+.filtros button { border: 0; border-radius: 999px; padding: 5px 13px; background: var(--panel-gris); color: var(--suave); font-size: 13.5px; display: inline-flex; gap: 6px; align-items: center; }
+.filtros button:hover { color: var(--texto); }
+.filtros button[aria-pressed="true"] { background: color-mix(in srgb, var(--verde) 22%, transparent); color: var(--verde-oscuro); font-weight: 500; }
+.filtros button small { font-size: 12px; opacity: .8; }
+.buscar { border-bottom: 0; padding-bottom: 0; }
+
+/* ── Grupos: otra forma, no solo otro dibujo ── */
+.avatar.grupo { border-radius: 14px; position: relative; }
+.avatar.chica.grupo { border-radius: 11px; }
+.avatar.grupo .cuantos { position: absolute; right: -5px; bottom: -5px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--panel); color: var(--texto); font-size: 11px; font-weight: 600; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--panel); }
+.chat-item.sel .avatar.grupo .cuantos, .chat-item:hover .avatar.grupo .cuantos { box-shadow: 0 0 0 2px var(--sel); }
+.chat-item .t .tipo { display: inline-flex; align-items: center; gap: 4px; flex: none; color: var(--suave); font-size: 11.5px; font-weight: 500; letter-spacing: .02em; border: 1px solid var(--borde); border-radius: 6px; padding: 0 6px; height: 18px; margin-left: 8px; }
+.chat-item .t .nombre-fila { display: flex; align-items: center; min-width: 0; }
+.chat-item .t .nombre-fila b { min-width: 0; }
+.chat-item .t span .quien { font-weight: 500; flex: none; }
+.chat-item .t span .sin-mensajes { opacity: .75; }
+.separador-lista { padding: 14px 16px 6px; color: var(--verde-oscuro); font-size: 13px; font-weight: 500; }
+
+/* ── Dentro de un grupo: se ve quién habla ── */
+.fila-msg { display: flex; gap: 8px; align-items: flex-start; align-self: flex-start; max-width: min(620px, 72%); }
+.fila-msg .msg { max-width: 100%; }
+.fila-msg .cara { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 600; flex: none; margin-top: 10px; }
+.fila-msg .cara.vacia { visibility: hidden; height: 0; }
+.fila-msg .cara.linea { border-radius: 8px; }
+.msg .autor .etiqueta { color: var(--suave); font-weight: 400; font-size: 11.5px; margin-left: 6px; }
+
+/* ── Quién escribe: las caras de los miembros, no un desplegable ── */
+.redactar .opciones { padding-left: 52px; gap: 10px; }
+.como { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.como .rotulo { margin-right: 4px; }
+.como button { border: 0; background: none; padding: 2px 9px 2px 2px; border-radius: 999px; display: inline-flex; gap: 6px; align-items: center; color: var(--suave); font-size: 13px; }
+.como button .cara { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 10px; font-weight: 600; }
+.como button:hover { background: var(--panel); color: var(--texto); }
+.como button[aria-pressed="true"] { background: var(--panel); color: var(--texto); box-shadow: inset 0 0 0 1.5px var(--verde); }
+.interruptor { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; margin-left: auto; }
+.interruptor input { appearance: none; width: 30px; height: 17px; border-radius: 9px; background: var(--tic); position: relative; margin: 0; cursor: pointer; transition: background .15s; }
+.interruptor input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.interruptor input:checked { background: var(--verde); }
+.interruptor input:checked::after { transform: translateX(13px); }
+@media (prefers-reduced-motion: reduce) { .interruptor input, .interruptor input::after { transition: none; } }
+@media (max-width: 760px) { .fila-msg { max-width: 90%; } .interruptor { margin-left: 0; } }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside>
+    <header class="cabeza">
+      <span class="avatar chica" id="avatarLinea" style="background:#00a884">?</span>
+      <div class="yo"><b id="nombreLinea">Sandbox de WhatsApp</b><span id="estadoLinea"></span></div>
+      <div class="acciones-cabeza">
+      <button class="ico" id="nuevoContacto" title="Nuevo contacto" aria-label="Nuevo contacto"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/><path d="M19 8v6M16 11h6"/></svg></button>
+      <button class="ico" id="nuevoGrupo" title="Nuevo grupo" aria-label="Nuevo grupo"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.8"/><path d="M1.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/><path d="M15 14.2c.6-.2 1.3-.3 2-.3 3 0 5.5 2.5 5.5 5.6"/></svg></button>
+      <button class="ico" id="tema" title="Cambiar a modo oscuro" aria-label="Cambiar a modo oscuro"></button>
+      <button class="ico" id="abrirDispositivos" title="Dispositivos vinculados" aria-label="Dispositivos vinculados"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="13" height="10" rx="1.5"/><path d="M7 18h5M9.5 14v4"/><rect x="17" y="9" width="5" height="11" rx="1.2"/></svg></button>
+      </div>
+    </header>
+    <div id="banner"></div>
+    <div class="buscar"><label><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" id="buscar" placeholder="Buscar un chat"></label></div>
+    <div class="filtros" id="filtros" role="group" aria-label="Qué chats ver"></div>
+    <div class="chats" id="chats"></div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<dialog id="visor" class="visor"><div class="visor-barra"><a class="ico" id="visorAbrir" target="_blank" rel="noopener" title="Abrir en otra pestaña" aria-label="Abrir en otra pestaña"></a><a class="ico" id="visorBajar" title="Descargar" aria-label="Descargar"></a><button class="ico" data-cerrar aria-label="Cerrar"></button></div><img id="visorImg" alt=""></dialog>
+<dialog id="dlgDispositivos">
+  <h3>Dispositivos vinculados</h3>
+  <div id="lineas"></div>
+  <div class="acciones"><button class="btn" data-cerrar>Cerrar</button></div>
+</dialog>
+<dialog id="dlgContacto">
+  <h3>Nuevo contacto</h3>
+  <input type="text" id="nombreContacto" placeholder="Nombre (p. ej. Ana Pérez)" maxlength="40">
+  <input type="text" id="numeroContacto" inputmode="tel" placeholder="Número con código de país (opcional)" maxlength="20" style="margin-top:14px">
+  <div class="acciones"><button class="btn" data-cerrar>Cancelar</button><button class="btn primario" id="crearContacto">Crear</button></div>
+</dialog>
+<dialog id="dlgGrupo">
+  <h3 id="tituloGrupo">Nuevo grupo</h3>
+  <input type="text" id="nombreGrupo" placeholder="Nombre del grupo" maxlength="60">
+  <div class="lista" id="miembrosGrupo"></div>
+  <div class="acciones"><button class="btn" data-cerrar>Cancelar</button><button class="btn primario" id="guardarGrupo">Guardar</button></div>
+</dialog>
+
+<script>
+const CLAVE = new URLSearchParams(location.search).get("clave") || "";
+const I = {
+  check: '<svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg>',
+  dobles: '<svg viewBox="0 0 24 24"><path d="M1.5 12.5l5 5L17 7"/><path d="M11 16.5l1 1L22.5 7"/></svg>',
+  reloj: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  mas: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+  citar: '<svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 016 6v5"/></svg>',
+  editar: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>',
+  borrar: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
+  prohibido: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>',
+  clip: '<svg viewBox="0 0 24 24"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 01-7.8-7.8l8.6-8.6a3.7 3.7 0 015.2 5.2l-8.6 8.6a1.8 1.8 0 01-2.6-2.6l7.9-7.9"/></svg>',
+  enviar: '<svg viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>',
+  cerrar: '<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+  doc: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>',
+  alerta: '<svg viewBox="0 0 24 24"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  atras: '<svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>',
+  senal: '<svg viewBox="0 0 24 24"><path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 4v16"/></svg>',
+  sinSenal: '<svg viewBox="0 0 24 24"><path d="M2 20h.01M7 20v-4M12 20v-8"/><path d="M17 4l5 5M22 4l-5 5"/></svg>',
+  puntos: '<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="19" r="1.3" fill="currentColor"/></svg>',
+  abrir: '<svg viewBox="0 0 24 24"><path d="M14 3h7v7"/><path d="M10 14L21 3"/><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5"/></svg>',
+  bajar: '<svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>',
+  encuesta: '<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',
+  micro: '<svg viewBox="0 0 24 24"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0"/><path d="M12 18v3.5"/></svg>',
+  basura: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
+  personas: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/><path d="M16 4.5a3.5 3.5 0 010 7M22 20c0-3-2-5.6-4.8-6.6"/></svg>',
+};
+const COLORES = ["#06cf9c", "#53bdeb", "#ff7eb6", "#a5b337", "#fa6533", "#7f66ff", "#02a698", "#ffbc38", "#d3396d"];
+let E = { lineas: [], contactos: [], grupos: [], mensajes: [] };
+let versionPantalla = null;
+let recargaPendiente = false;
+/** Texto escrito, adjunto, cita o nota de voz grabándose: lo que una recarga borraría. */
+function hayAlgoAMedias() {
+  return !!(document.getElementById("texto")?.value.trim() || adjunto || citando || grabadora);
+}
+/* Cuando lo a medias se manda o se vacía, se aplica la recarga que esperaba. */
+setInterval(() => { if (recargaPendiente && !hayAlgoAMedias()) location.reload(); }, 1500);
+let sel = { instancia: null, chat: null };
+let citando = null;
+let adjunto = null;
+let escribeComo = {};
+let lineaEscribe = {};
+
+const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const color = (id) => COLORES[[...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORES.length];
+const iniciales = (n) => String(n || "?").split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+/** +1 809 555 7954 en vez de 18095557954. */
+const numeroBonito = (n) => { const d = String(n || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "1" ? `+1 ${d.slice(1, 4)} ${d.slice(4, 7)} ${d.slice(7)}` : d ? `+${d}` : ""; };
+let filtroChats = (() => { try { return localStorage.getItem("filtroChats") || "todos"; } catch { return "todos"; } })();
+/**
+ * El texto como lo pinta WhatsApp: *negrita*, _cursiva_, ~tachado~, ```mono```
+ * y los enlaces. Se escapa primero y luego se marcan solo los pares que
+ * envuelven texto en la misma línea, igual que el teléfono: «2 * 3» se queda.
+ * Lo que WhatsApp no entiende (**doble**, ## títulos) se ve tal cual, como allá.
+ */
+function wa(t) {
+  const borde = "(^|[\\s(¡¿\"'])", fin = "(?=$|[\\s.,;:!?)\"'])";
+  const par = (c, tag) => (x) => x.replace(new RegExp(`${borde}\\${c}(\\S(?:[^${c}\\n]*\\S)?)\\${c}${fin}`, "g"), `$1<${tag}>$2</${tag}>`);
+  let x = h(t).replace(/```([\s\S]+?)```/g, "<code>$1</code>");
+  x = par("*", "b")(par("_", "i")(par("~", "s")(x)));
+  return x.replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+const hora = (ts) => new Date(ts).toLocaleTimeString("es-DO", { hour: "numeric", minute: "2-digit" });
+
+async function api(ruta, cuerpo, metodo) {
+  const r = await fetch(`/qr/api/${ruta}${ruta.includes("?") ? "&" : "?"}clave=${encodeURIComponent(CLAVE)}`, {
+    method: metodo || (cuerpo ? "POST" : "GET"),
+    headers: cuerpo ? { "content-type": "application/json" } : {},
+    body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || `Error ${r.status}`);
+  return d;
+}
+function aviso(t) {
+  const d = document.createElement("div");
+  d.className = "toast"; d.textContent = t; document.body.appendChild(d);
+  setTimeout(() => d.remove(), 3800);
+}
+async function cargar() {
+  try {
+    const r = await fetch(`/qr/api/estado?clave=${encodeURIComponent(CLAVE)}`, { cache: "no-store" });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Error ${r.status}`);
+    // Si el sandbox se actualizó, esta pantalla vieja no sabría pintar lo nuevo: se recarga sola.
+    const v = r.headers.get("x-version-pantalla");
+    // Pero no con algo a medias: recargar en ese momento se llevaba el adjunto y
+    // lo escrito (pasó al editar el sandbox mientras Ronald probaba). Espera.
+    if (v && versionPantalla && v !== versionPantalla) {
+      if (!hayAlgoAMedias()) { location.reload(); return; }
+      recargaPendiente = true;
+    }
+    if (v) versionPantalla = v;
+    E = await r.json();
+  }
+  catch (e) { document.getElementById("main").innerHTML = `<div class="bienvenida"><div><b>No pude entrar</b>${h(e.message)} Abre esta página con el enlace que imprime el sandbox al arrancar.</div></div>`; return; }
+  if (!sel.instancia || !E.lineas.find((l) => l.instancia === sel.instancia)) sel.instancia = E.lineas[0]?.instancia || null;
+  pintar();
+}
+
+function nombreDe(id) {
+  if (id === "linea") return lineaSel()?.nombre || "La línea";
+  if (id === "telefono") return `${lineaSel()?.nombre || "La línea"} (desde el teléfono)`;
+  return E.contactos.find((k) => k.id === id)?.nombre || "Alguien";
+}
+const lineaSel = () => E.lineas.find((l) => l.instancia === sel.instancia);
+function chatsDeLinea() {
+  const l = lineaSel();
+  if (!l) return [];
+  const grupos = E.grupos.filter((g) => g.lineas.includes(l.instancia)).map((g) => ({ id: g.id, nombre: g.nombre, grupo: g }));
+  const contactos = E.contactos.map((k) => ({ id: `contacto:${k.id}`, nombre: k.nombre, contacto: k }));
+  const ultimo = (id) => E.mensajes.filter((m) => m.instancia === l.instancia && m.chat === id && !m.oculto).at(-1);
+  return [...grupos, ...contactos].map((c) => ({ ...c, ultimo: ultimo(c.id) })).sort((a, b) => (b.ultimo?.ts || 0) - (a.ultimo?.ts || 0));
+}
+
+function pintar() {
+  pintarLineas();
+  pintarChats();
+  pintarMain();
+}
+
+let qrAvisado = null;
+function pintarLineas() {
+  const l = lineaSel();
+  const estadoTxt = (x) => ({ conectada: "conectada", esperando_qr: "esperando que escanees el QR", desconectada: x.numero ? "RunOp no está conectado" : "sin vincular" }[x.estado]);
+  document.getElementById("nombreLinea").textContent = l?.nombre || (l ? l.instancia : "Sandbox de WhatsApp");
+  document.getElementById("estadoLinea").innerHTML = l ? `<span class="punto ${l.estado}"></span>${h(estadoTxt(l))}${l.numero ? ` · ${h(numeroBonito(l.numero))}` : ""}` : "ninguna línea todavía";
+  const av = document.getElementById("avatarLinea");
+  av.textContent = iniciales(l?.nombre || "S");
+  const banner = document.getElementById("banner");
+  if (!l || l.estado !== "conectada") {
+    banner.innerHTML = `<div class="banner"><span class="circulo">${I.alerta}</span><div><b>${!l ? "Conecta la línea de RunOp" : l.estado === "esperando_qr" ? "Hay un QR esperando" : "La línea está desconectada"}</b>
+      <span>${!l ? "En el panel de RunOp, dale a Conectar en la línea del sandbox." : l.estado === "esperando_qr" ? "" : "Lo que escribas llegará cuando RunOp se reconecte. "}</span>${l?.estado === "esperando_qr" ? `<button id="verQr">Escanear el código QR</button>` : ""}</div></div>`;
+  } else banner.innerHTML = "";
+
+  const caja = document.getElementById("lineas");
+  caja.innerHTML = !E.lineas.length ? `<div class="vacio">Ninguna línea todavía. En el panel de RunOp, conecta la línea QR del sandbox y aparecerá aquí con su QR.</div>`
+    : E.lineas.map((x) => `<div class="dispositivo">
+      <div class="nombre"><span class="punto ${x.estado}"></span>${h(x.nombre || x.instancia)}</div>
+      <small>${h(x.instancia)}${x.numero ? ` · +${h(x.numero)}` : ""} · ${h(estadoTxt(x))}</small>
+      ${x.estado === "esperando_qr" ? `<div class="qr"><div class="codigo">${h(x.qr)}</div>
+        <input type="text" placeholder="Nombre del negocio en WhatsApp" data-nombre-linea="${h(x.instancia)}" maxlength="40">
+        <div><button class="btn primario" data-vincular="${h(x.instancia)}">Escanear este QR</button></div></div>` : ""}
+      ${x.estado === "conectada" ? `<div class="acciones-linea">
+        <button class="btn" data-conexion="caida" data-inst="${h(x.instancia)}" title="Se cae la conexión; RunOp debe reconectar solo">Cortar conexión</button>
+        <button class="btn" data-conexion="reemplazada" data-inst="${h(x.instancia)}" title="Como abrir la sesión en otro sitio (440)">Abrir en otro sitio</button>
+        <button class="btn peligro" data-conexion="cerrar_sesion" data-inst="${h(x.instancia)}" title="Dispositivos vinculados, Cerrar sesión (401)">Cerrar sesión</button></div>` : ""}
+    </div>`).join("");
+  // Un QR nuevo esperando: se abre solo, como al ir a «Vincular un dispositivo».
+  const esperando = E.lineas.find((x) => x.estado === "esperando_qr");
+  if (esperando && qrAvisado !== esperando.instancia) {
+    qrAvisado = esperando.instancia;
+    const d = document.getElementById("dlgDispositivos");
+    if (!d.open) d.showModal();
+  }
+  if (!esperando) qrAvisado = null;
+}
+
+function textoResumen(u) {
+  if (!u) return "";
+  if (u.borrado) return "Se eliminó este mensaje";
+  if (u.vista?.tipo === "encuesta") return `Encuesta: ${u.vista.pregunta || ""}`;
+  return u.vista?.texto || u.vista?.caption || u.vista?.fileName || ({ imagen: "Foto", video: "Video", audio: "Nota de voz", sticker: "Sticker", documento: "Documento" }[u.vista?.tipo] || "");
+}
+function cuando(ts) {
+  const d = new Date(ts), hoy = new Date();
+  if (d.toDateString() === hoy.toDateString()) return hora(ts);
+  const ayer = new Date(hoy - 864e5);
+  if (d.toDateString() === ayer.toDateString()) return "ayer";
+  return d.toLocaleDateString("es-DO", { day: "numeric", month: "numeric", year: "2-digit" });
+}
+
+function pintarChats() {
+  const caja = document.getElementById("chats");
+  if (!lineaSel()) { caja.innerHTML = ""; return; }
+  const filtro = (document.getElementById("buscar")?.value || "").trim().toLowerCase();
+  const todos = chatsDeLinea();
+  const nGrupos = todos.filter((c) => c.grupo).length;
+  document.getElementById("filtros").innerHTML = [["todos", "Todos", todos.length], ["personales", "Personales", todos.length - nGrupos], ["grupos", "Grupos", nGrupos]]
+    .map(([id, t, n]) => `<button data-filtro="${id}" aria-pressed="${filtroChats === id}">${t} <small>${n}</small></button>`).join("");
+  const lista = todos
+    .filter((c) => filtroChats === "todos" || (filtroChats === "grupos") === !!c.grupo)
+    .filter((c) => !filtro || c.nombre.toLowerCase().includes(filtro));
+  if (!lista.length) {
+    caja.innerHTML = `<div class="vacio">${filtro ? "No hay chats con ese nombre." : filtroChats === "grupos" ? "Todavía no hay grupos. Crea uno con el botón de arriba." : filtroChats === "personales" ? "Todavía no hay contactos. Crea uno con el botón de arriba." : "Crea un contacto o un grupo con los botones de arriba para escribirle a la línea."}</div>`;
+    return;
+  }
+  caja.innerHTML = lista.map((c) => {
+    const u = c.ultimo;
+    let resumen = c.grupo ? `<span class="sin-mensajes">${c.grupo.miembros.length} personas y la línea</span>` : `<span class="sin-mensajes">${h(numeroBonito(c.contacto.pn))}</span>`;
+    if (u) {
+      const mio = u.de !== "linea";
+      const tic = mio && !c.grupo ? (u.leidoPorLinea ? `<i class="leido" style="color:var(--azul);display:inline-flex">${I.dobles}</i>` : `<i style="color:var(--tic);display:inline-flex">${I.dobles}</i>`) : "";
+      const autorTxt = u.de === "linea" || u.de === "telefono" ? lineaSel()?.nombre || "La línea" : nombreDe(u.de);
+      const quien = c.grupo ? `<span class="quien" style="color:${u.de === "linea" || u.de === "telefono" ? "var(--verde-oscuro)" : color(u.de)}">${h(autorTxt)}:</span>` : "";
+      resumen = `${tic}${quien}${h(textoResumen(u))}`;
+    }
+    return `<button class="chat-item ${c.id === sel.chat ? "sel" : ""}" data-chat="${h(c.id)}">
+      ${c.grupo ? avatarGrupo(c, "") : `<span class="avatar" style="background:${color(c.id)}">${h(iniciales(c.nombre))}</span>`}
+      <span class="t"><span class="arriba"><span class="nombre-fila"><b>${h(c.nombre)}</b>${c.grupo ? `<span class="tipo">Grupo</span>` : ""}</span>${u ? `<time>${cuando(u.ts)}</time>` : ""}</span><span>${resumen}</span></span></button>`;
+  }).join("");
+}
+
+/** Los grupos van en cuadro redondeado, con cuántos son: se distinguen sin leer. */
+function avatarGrupo(c, clase) {
+  const n = c.grupo.miembros.length + 1;
+  return `<span class="avatar grupo ${clase}" style="background:${color(c.id)}" title="${n} participantes">${I.personas}${clase ? "" : `<span class="cuantos">${n}</span>`}</span>`;
+}
+
+function pintarMain() {
+  const main = document.getElementById("main");
+  const l = lineaSel();
+  const chats = chatsDeLinea();
+  const c = chats.find((x) => x.id === sel.chat);
+  document.getElementById("app").classList.toggle("con-chat", !!c);
+  if (!l || !c) {
+    main.dataset.abierto = "";
+    main.innerHTML = `<div class="bienvenida"><div><div class="dibujo"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="15" height="11" rx="1.5"/><path d="M6 19h7M9.5 15v4"/><rect x="18" y="8" width="4.5" height="12" rx="1"/></svg></div><b>Sandbox de WhatsApp</b>${l ? "Escribe como cualquiera de tus contactos de mentira. La línea de RunOp recibe exactamente lo que mandaría WhatsApp por QR." : "En el panel de RunOp, conecta la línea QR del sandbox y escanea aquí su código."}</div></div>`;
+    return;
+  }
+  const g = c.grupo;
+  const k = c.contacto;
+  const sub = g ? `${g.miembros.length + 1} participantes: ${[l.nombre, ...g.miembros.map(nombreDe)].join(", ")}` : `${numeroBonito(k.pn)}${k.sinSenal ? " · sin señal" : ""}`;
+  const barra = `<header class="barra">
+    <button class="ico volver" id="volver" aria-label="Volver">${I.atras}</button>
+    ${g ? avatarGrupo(c, "chica") : `<span class="avatar chica" style="background:${color(c.id)}">${h(iniciales(c.nombre))}</span>`}
+    <div class="titulo"><b>${h(c.nombre)}</b><span>${h(sub)}</span></div>
+    ${k ? `<button class="ico" id="senal" title="${k.sinSenal ? "Sin señal: no le llega nada hasta que la recupere" : "Con señal"}" aria-label="Señal del teléfono">${k.sinSenal ? I.sinSenal : I.senal}</button>` : ""}
+    ${g ? `<button class="ico" id="editarGrupo" title="Miembros del grupo" aria-label="Miembros del grupo">${I.personas}</button>` : ""}
+    <button class="ico" id="menuChat" aria-label="Más opciones">${I.puntos}</button>
+  </header>`;
+  const msgs = E.mensajes.filter((m) => m.instancia === l.instancia && m.chat === c.id && !m.oculto);
+  const cuerpo = msgs.map((m, i) => g ? filaDeGrupo(m, g, msgs[i - 1]) : burbuja(m, g, msgs[i - 1])).join("") || `<div class="vacio" style="align-self:center">Todavía no hay mensajes. Escribe el primero.</div>`;
+  const quien = escribeComo[c.id] || g?.miembros[0];
+  const redactar = `<footer class="redactar">
+    ${citando ? `<div class="citando"><div class="q"><b>${h(nombreDe(citando.de))}</b><span>${h(textoResumen(citando))}</span></div><button class="ico" id="quitarCita" aria-label="Quitar la cita">${I.cerrar}</button></div>` : ""}
+    ${adjunto ? `<div class="adjunto">${I.clip}${h(adjunto.fileName)} (${Math.round(adjunto.tamano / 1024)} KB)<span style="flex:1"></span><button class="ico" id="quitarAdjunto" aria-label="Quitar el adjunto">${I.cerrar}</button></div>` : ""}
+    <div class="fila-entrada">
+      <label class="ico" title="Adjuntar" aria-label="Adjuntar">${I.clip}<input type="file" id="archivo" hidden></label>
+      <textarea id="texto" rows="1" placeholder="${g ? "Escribe un mensaje (usa @Nombre para mencionar)" : "Escribe un mensaje"}"></textarea>
+      <button class="ico" id="enviar" aria-label="Enviar" ${adjunto ? "" : 'hidden'}>${I.enviar}</button>
+      <button class="ico" id="grabar" aria-label="Grabar nota de voz" title="Grabar nota de voz" ${adjunto ? "hidden" : ""}>${I.micro}</button>
+    </div>
+    <div class="opciones">
+      ${g ? `<div class="como" role="group" aria-label="Quién escribe"><span class="rotulo">Escribe:</span>${g.miembros.map((id) => `<button data-como="${h(id)}" aria-pressed="${id === quien}" title="Escribir como ${h(nombreDe(id))}"><span class="cara" style="background:${color(id)}">${h(iniciales(nombreDe(id)))}</span>${h(nombreDe(id))}</button>`).join("")}</div>` : ""}
+      <label class="interruptor" title="Lo que escribas sale como la línea, desde su propio teléfono"><input type="checkbox" id="desdeTel" role="switch"> Desde el teléfono de la línea</label>
+    </div></footer>`;
+  const claveRedactar = `${c.id}|${citando?.id || ""}|${adjunto?.fileName || ""}|${g ? g.miembros.join(",") + "|" + quien : ""}`;
+  let recienAbierto = false;
+  /* «abierto» y no «chat»: con data-chat, el clic en la caja de texto subía
+     hasta aquí, contaba como abrir el chat otra vez y borraba el adjunto. */
+  if (main.dataset.abierto !== c.id) {
+    recienAbierto = true;
+    main.dataset.abierto = c.id;
+    main.dataset.redactar = "";
+    main.innerHTML = `<div id="barraChat"></div><div class="mensajes" id="mensajes"></div><div id="cajaRedactar"></div>`;
+  }
+  main.querySelector("#barraChat").innerHTML = barra;
+  const caja = main.querySelector(".mensajes");
+  const abajo = caja.scrollHeight - caja.scrollTop - caja.clientHeight < 80;
+  caja.innerHTML = cuerpo;
+  if (abajo || recienAbierto) {
+    caja.scrollTop = caja.scrollHeight;
+    // Las fotos y videos cargan después y empujan el final hacia abajo: se sigue bajando.
+    caja.querySelectorAll("img, video").forEach((m) => m.addEventListener("load", () => { caja.scrollTop = caja.scrollHeight; }, { once: true }));
+    caja.querySelectorAll("video").forEach((m) => m.addEventListener("loadedmetadata", () => { caja.scrollTop = caja.scrollHeight; }, { once: true }));
+  }
+  pintarEscribiendo();
+  if (main.dataset.redactar !== claveRedactar) {
+    const t = main.querySelector("#texto");
+    const valor = t?.value || "";
+    const desdeTel = !!main.querySelector("#desdeTel")?.checked;
+    main.querySelector("#cajaRedactar").innerHTML = redactar;
+    main.dataset.redactar = claveRedactar;
+    main.querySelector("#texto").value = valor;
+    main.querySelector("#desdeTel").checked = desdeTel;
+  }
+  leer(c, quien);
+}
+
+function burbuja(m, g, previo) {
+  // Como en el teléfono de quien escribe: en un grupo, lo suyo a la derecha y lo de
+  // los demás (personas y la línea) a la izquierda con su nombre.
+  const yo = g ? (escribeComo[g.id] || g.miembros[0]) : null;
+  const propio = g ? m.de === yo : m.de !== "linea";
+  const primero = !previo || previo.de !== m.de;
+  const cita = m.citado ? E.mensajes.find((x) => x.id === m.citado) : null;
+  let contenido = "";
+  const v = m.vista || {};
+  const mime = v.mimetype || (/\.pdf$/i.test(v.fileName || "") ? "application/pdf" : "");
+  const src = v.medio ? `/qr/api/medio/${v.medio}?clave=${encodeURIComponent(CLAVE)}&tipo=${encodeURIComponent(mime)}&nombre=${encodeURIComponent(v.fileName || (v.tipo === "imagen" ? "imagen" : "archivo"))}` : v.url || "";
+  if (m.borrado) contenido = `<span class="borrado">${I.prohibido}Se eliminó este mensaje</span>`;
+  else if (v.tipo === "imagen" || v.tipo === "sticker") contenido = `<img src="${h(src)}" alt="" data-ver="${h(src)}" tabindex="0" style="cursor:zoom-in">${v.caption ? `<div class="cuerpo">${wa(v.caption)}</div>` : ""}${v.noAbre ? `<div class="aviso">${I.alerta}Llegó como ${h(v.mimetype)}: WhatsApp la entrega, pero el teléfono no la abre</div>` : ""}`;
+  else if (v.tipo === "video") contenido = `<video src="${h(src)}" controls></video>${v.caption ? `<div class="cuerpo">${wa(v.caption)}</div>` : ""}`;
+  else if (v.tipo === "audio") contenido = `<audio src="${h(src)}" controls></audio>`;
+  else if (v.tipo === "documento") contenido = `<span class="doc">${I.doc}<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(v.fileName || "Documento")}</span><a class="ico" href="${h(src)}" target="_blank" rel="noopener" title="Abrir" aria-label="Abrir">${I.abrir}</a><a class="ico" href="${h(src)}&descargar=1" title="Descargar" aria-label="Descargar">${I.bajar}</a></span>${v.caption ? `<div class="cuerpo">${wa(v.caption)}</div>` : ""}`;
+  else if (v.tipo === "encuesta") contenido = encuesta(m, g);
+  else contenido = `<span class="cuerpo">${wa(v.texto)}</span>`;
+  let marca = "";
+  if (propio) {
+    marca = m.enEspera ? `<span title="La línea está desconectada: llegará al reconectar">${I.reloj}</span>`
+      : m.leidoPorLinea ? `<span class="leido" title="Leído por la línea">${I.dobles}</span>`
+      : `<span title="Entregado a la línea">${I.dobles}</span>`;
+  }
+  const reac = Object.entries(m.reacciones || {}).filter(([, e]) => e);
+  const autor = primero && ((g && !propio) || m.de === "telefono") ? `<div class="autor" style="color:${m.de === "telefono" || m.de === "linea" ? "var(--verde-oscuro)" : color(m.de)}">${h(nombreDe(m.de))}${g && m.de === "linea" ? `<span class="etiqueta">la línea</span>` : ""}</div>` : "";
+  return `<div class="msg ${propio ? "contacto" : ""} ${primero ? "primero" : ""} ${reac.length ? "con-reaccion" : ""}" data-id="${h(m.id)}">
+    ${m.borrado ? "" : `<button class="mas" data-menu="${h(m.id)}" aria-label="Acciones del mensaje">${I.mas}</button>`}
+    ${autor}
+    ${cita ? `<div class="cita"><b>${h(nombreDe(cita.de))}</b>${h(textoResumen(cita))}</div>` : ""}
+    ${contenido}<span class="pie">${m.editado ? "Editado " : ""}${hora(m.ts)}${marca}</span>
+    ${reac.length ? `<div class="reacciones" title="${h(reac.map(([q, e]) => nombreDe(q) + " " + e).join(", "))}">${reac.map(([, e]) => h(e)).join("")}</div>` : ""}
+  </div>`;
+}
+
+/**
+ * En un grupo, lo de los demás lleva la cara de quien lo dijo, como WhatsApp:
+ * solo en el primero de una racha; los siguientes dejan el hueco para alinear.
+ * La línea va con cara cuadrada, como los grupos: es el negocio, no una persona.
+ */
+function filaDeGrupo(m, g, previo) {
+  const html = burbuja(m, g, previo);
+  const yo = escribeComo[g.id] || g.miembros[0];
+  if (m.de === yo) return html;
+  const primero = !previo || previo.de !== m.de;
+  const esLinea = m.de === "linea" || m.de === "telefono";
+  const cara = primero
+    ? `<span class="cara ${esLinea ? "linea" : ""}" style="background:${esLinea ? "var(--verde-oscuro)" : color(m.de)}" title="${h(nombreDe(m.de))}">${h(iniciales(esLinea ? lineaSel()?.nombre : nombreDe(m.de)))}</span>`
+    : `<span class="cara vacia"></span>`;
+  return `<div class="fila-msg">${cara}${html}</div>`;
+}
+
+/** Quién vota desde esta pantalla: en un grupo, quien está escribiendo; en un 1 a 1, el contacto. */
+function votanteDe(m) {
+  if (m.chat.startsWith("contacto:")) return m.chat.slice(9);
+  const g = E.grupos.find((x) => x.id === m.chat);
+  return g ? (escribeComo[g.id] || g.miembros[0]) : null;
+}
+
+/** Una encuesta como la pinta WhatsApp Web: pregunta, opciones con su marca, conteo y barra. */
+function encuesta(m, g) {
+  const v = m.vista || {};
+  const votos = m.votos || {};
+  const yo = votanteDe(m);
+  const mias = new Set(votos[yo] || []);
+  const total = Object.keys(votos).length;
+  const conteo = (op) => Object.values(votos).filter((l) => l.includes(op)).length;
+  const max = Math.max(1, ...(v.opciones || []).map(conteo));
+  const ops = (v.opciones || []).map((op) => {
+    const n = conteo(op);
+    const quienes = Object.entries(votos).filter(([, l]) => l.includes(op)).map(([q]) => q);
+    const caritas = quienes.slice(0, 3).map((q) => `<span style="background:${color(q)}">${h(iniciales(nombreDe(q)))}</span>`).join("");
+    return `<button class="op ${mias.has(op) ? "elegida" : ""}" data-votar="${h(m.id)}" data-opcion="${h(op)}" ${m.de === "linea" || g ? "" : "disabled"} aria-pressed="${mias.has(op)}" title="${h(quienes.map(nombreDe).join(", ") || "Sin votos")}">
+      <span class="marca">${I.check}</span><span class="nombre">${h(op)}</span>
+      <span class="derecha"><span class="caritas">${caritas}</span>${n}</span>
+      <span class="barra-voto"><i style="width:${Math.round((n / max) * 100)}%"></i></span></button>`;
+  }).join("");
+  return `<div class="encuesta ${v.varias ? "varias" : ""}">
+    <div class="pregunta">${h(v.pregunta)}</div>
+    <div class="nota">${I.encuesta}${v.varias ? "Selecciona una o más opciones" : "Selecciona una opción"}${yo ? ` · vota ${h(nombreDe(yo))}` : ""}</div>
+    ${ops}
+    <button class="ver-votos" data-ver-votos="${h(m.id)}" ${total ? "" : "disabled"}>${total ? "Ver votos" : "Nadie ha votado"}</button>
+  </div>`;
+}
+
+async function votar(id, opcion) {
+  const m = E.mensajes.find((x) => x.id === id);
+  if (!m) return;
+  const yo = votanteDe(m);
+  if (!yo) return aviso("Elige quién vota.");
+  const antes = new Set((m.votos || {})[yo] || []);
+  let nuevas;
+  if (m.vista.varias) { antes.has(opcion) ? antes.delete(opcion) : antes.add(opcion); nuevas = [...antes]; }
+  else nuevas = antes.has(opcion) ? [] : [opcion];
+  await api("votar", { instancia: sel.instancia, mensaje: id, de: yo, opciones: nuevas });
+  await cargar();
+}
+
+function verVotos(id) {
+  const m = E.mensajes.find((x) => x.id === id);
+  if (!m) return;
+  const votos = m.votos || {};
+  const d = document.createElement("dialog");
+  d.className = "votos-lista";
+  d.innerHTML = `<h3>${h(m.vista.pregunta)}</h3>${(m.vista.opciones || []).map((op) => {
+    const quienes = Object.entries(votos).filter(([, l]) => l.includes(op)).map(([q]) => q);
+    return `<h4>${h(op)}<span>${quienes.length} voto${quienes.length === 1 ? "" : "s"}</span></h4>${quienes.map((q) => `<div class="quien"><span class="avatar" style="background:${color(q)}">${h(iniciales(nombreDe(q)))}</span>${h(nombreDe(q))}</div>`).join("")}`;
+  }).join("")}<div class="acciones"><button class="btn primario" value="ok">Cerrar</button></div>`;
+  document.body.appendChild(d);
+  d.addEventListener("click", (e) => { if (e.target.closest("button") || e.target === d) { d.close(); d.remove(); } });
+  d.showModal();
+}
+
+let leyendo = null;
+function leer(c, quien) {
+  if (document.hidden) return;
+  const pendientes = E.mensajes.some((m) => m.instancia === sel.instancia && m.chat === c.id && m.de === "linea" && (c.grupo ? !(m.leidoPor || []).includes(quien) : m.estado !== "leido"));
+  if (!pendientes || leyendo) return;
+  leyendo = setTimeout(() => {
+    leyendo = null;
+    api("leer", { instancia: sel.instancia, chat: c.id, de: quien }).catch(() => {});
+  }, 900);
+}
+
+function abrirMenu(id, x, y) {
+  cerrarMenu();
+  const m = E.mensajes.find((z) => z.id === id);
+  if (!m) return;
+  const g = E.grupos.find((z) => z.id === m.chat);
+  const mio = m.de !== "linea";
+  const reciente = Date.now() - m.ts < 15 * 60_000;
+  const d = document.createElement("div");
+  d.className = "menu";
+  d.innerHTML = `<div class="emojis">${["👍", "❤️", "😂", "😮", "🙏"].map((e) => `<button data-reaccion="${e}" aria-label="Reaccionar">${e}</button>`).join("")}</div>
+    <button data-accion="citar">${I.citar}Responder citando</button>
+    ${mio && m.vista?.tipo === "texto" && reciente ? `<button data-accion="editar">${I.editar}Editar</button>` : ""}
+    ${mio ? `<hr><button data-accion="borrar" style="color:var(--peligro)">${I.borrar}Eliminar para todos</button>` : ""}`;
+  document.body.appendChild(d);
+  const r = d.getBoundingClientRect();
+  d.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + "px";
+  d.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + "px";
+  d.addEventListener("click", async (ev) => {
+    const b = ev.target.closest("button");
+    if (!b) return;
+    cerrarMenu();
+    try {
+      if (b.dataset.reaccion) {
+        const de = g ? (escribeComo[m.chat] || g.miembros[0]) : null;
+        await api("reaccionar", { instancia: sel.instancia, mensaje: id, de, emoji: b.dataset.reaccion });
+      } else if (b.dataset.accion === "citar") {
+        citando = m; pintarMain(); document.getElementById("texto")?.focus();
+      } else if (b.dataset.accion === "editar") {
+        const nuevo = await pedirTexto("Editar mensaje", m.vista.texto);
+        if (nuevo != null) await api("editar", { instancia: sel.instancia, mensaje: id, texto: nuevo });
+      } else if (b.dataset.accion === "borrar") {
+        if (await confirmar("¿Eliminar este mensaje para todos?", "Eliminar")) await api("borrar", { instancia: sel.instancia, mensaje: id });
+      }
+    } catch (e) { aviso(e.message); }
+  });
+}
+function cerrarMenu() { document.querySelectorAll(".menu").forEach((x) => x.remove()); }
+
+function pedirTexto(titulo, valor) {
+  return new Promise((ok) => {
+    const d = document.createElement("dialog");
+    d.innerHTML = `<h3>${h(titulo)}</h3><textarea rows="3" style="width:100%">${h(valor)}</textarea><div class="acciones"><button class="btn" value="no">Cancelar</button><button class="btn primario" value="si">Guardar</button></div>`;
+    document.body.appendChild(d);
+    d.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; ok(b.value === "si" ? d.querySelector("textarea").value : null); d.close(); d.remove(); });
+    d.showModal();
+  });
+}
+function confirmar(texto, boton) {
+  return new Promise((ok) => {
+    const d = document.createElement("dialog");
+    d.innerHTML = `<h3>${h(texto)}</h3><div class="acciones"><button class="btn" value="no">Cancelar</button><button class="btn primario" style="background:var(--peligro);border-color:var(--peligro)" value="si">${h(boton)}</button></div>`;
+    document.body.appendChild(d);
+    d.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; ok(b.value === "si"); d.close(); d.remove(); });
+    d.showModal();
+  });
+}
+
+let ultimoEscribiendo = 0;
+document.addEventListener("input", (e) => {
+  if (e.target.id === "buscar") { pintarChats(); return; }
+  if (e.target.id === "texto") {
+    const hay = !!e.target.value.trim() || !!adjunto;
+    document.getElementById("enviar").hidden = !hay;
+    document.getElementById("grabar").hidden = hay;
+  }
+  if (e.target.id !== "texto") return;
+  e.target.style.height = "auto"; e.target.style.height = Math.min(140, e.target.scrollHeight) + "px";
+  if (Date.now() - ultimoEscribiendo < 4000 || document.getElementById("desdeTel")?.checked) return;
+  ultimoEscribiendo = Date.now();
+  const g = E.grupos.find((x) => x.id === sel.chat);
+  api("escribiendo", { instancia: sel.instancia, chat: sel.chat, de: g ? (escribeComo[sel.chat] || g.miembros[0]) : null, estado: "composing" }).catch(() => {});
+});
+document.addEventListener("keydown", (e) => {
+  if (e.target.id === "texto" && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }
+  if (e.key === "Escape") cerrarMenu();
+});
+document.addEventListener("change", async (e) => {
+  if (e.target.id === "como") { escribeComo[sel.chat] = e.target.value; pintarMain(); }
+  if (e.target.id === "archivo") {
+    const f = e.target.files[0];
+    if (!f) return;
+    const base64 = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.readAsDataURL(f); });
+    const tipo = f.type.startsWith("image/") ? (f.type === "image/webp" && f.size < 500_000 ? "sticker" : "imagen") : f.type.startsWith("video/") ? "video" : f.type.startsWith("audio/") ? "audio" : "documento";
+    adjunto = { base64, mimetype: f.type || "application/octet-stream", fileName: f.name, tipo, tamano: f.size };
+    pintarMain();
+  }
+});
+
+/* Nota de voz: se graba en el navegador y el sandbox la convierte a OGG/Opus. */
+let grabadora = null, trozos = [], inicioGrabacion = 0, relojGrabacion = null;
+async function empezarGrabacion() {
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { aviso("No tengo permiso para usar el micrófono."); return; }
+  trozos = [];
+  grabadora = new MediaRecorder(stream);
+  grabadora.ondataavailable = (ev) => { if (ev.data.size) trozos.push(ev.data); };
+  grabadora.start();
+  inicioGrabacion = Date.now();
+  const fila = document.querySelector(".fila-entrada");
+  fila.dataset.antes = fila.innerHTML;
+  fila.innerHTML = `<button class="ico" id="cancelarNota" aria-label="Cancelar la nota de voz" title="Cancelar">${I.basura}</button>
+    <div class="grabando"><span class="rojo"></span><span class="tiempo">0:00</span><span class="ayuda">Grabando nota de voz…</span></div>
+    <button class="ico" id="enviarNota" aria-label="Enviar la nota de voz" title="Enviar">${I.enviar}</button>`;
+  relojGrabacion = setInterval(() => {
+    const s = Math.floor((Date.now() - inicioGrabacion) / 1000);
+    const t = document.querySelector(".grabando .tiempo");
+    if (t) t.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  }, 250);
+}
+function terminarGrabacion(enviarla) {
+  if (!grabadora) return;
+  const g = grabadora; grabadora = null;
+  clearInterval(relojGrabacion);
+  g.onstop = async () => {
+    g.stream.getTracks().forEach((t) => t.stop());
+    main.dataset.redactar = ""; pintarMain();
+    if (!enviarla || !trozos.length) return;
+    const blob = new Blob(trozos, { type: g.mimeType || "audio/webm" });
+    const base64 = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.readAsDataURL(blob); });
+    const gr = E.grupos.find((x) => x.id === sel.chat);
+    try {
+      await api("escribir", {
+        instancia: sel.instancia, chat: sel.chat, texto: "",
+        de: gr ? (escribeComo[sel.chat] || gr.miembros[0]) : null,
+        desdeElTelefono: document.getElementById("desdeTel")?.checked || false,
+        media: { base64, mimetype: blob.type, fileName: "nota.webm", tipo: "audio", nota: true },
+      });
+      await cargar();
+    } catch (e) { aviso(e.message); }
+  };
+  g.stop();
+}
+const main = document.getElementById("main");
+
+async function enviar() {
+  const t = document.getElementById("texto");
+  const texto = t.value;
+  if (!texto.trim() && !adjunto) return;
+  const g = E.grupos.find((x) => x.id === sel.chat);
+  const cuerpo = {
+    instancia: sel.instancia, chat: sel.chat, texto, citado: citando?.id,
+    de: g ? (escribeComo[sel.chat] || g.miembros[0]) : null,
+    desdeElTelefono: document.getElementById("desdeTel")?.checked || false,
+    media: adjunto ? { base64: adjunto.base64, mimetype: adjunto.mimetype, fileName: adjunto.fileName, tipo: adjunto.tipo } : undefined,
+  };
+  try {
+    await api("escribir", cuerpo);
+    t.value = ""; citando = null; adjunto = null; ultimoEscribiendo = 0;
+    document.getElementById("enviar").hidden = true;
+    document.getElementById("grabar").hidden = false;
+    if (!cuerpo.desdeElTelefono) api("escribiendo", { instancia: sel.instancia, chat: sel.chat, de: cuerpo.de, estado: "paused" }).catch(() => {});
+    await cargar();
+  } catch (e) { aviso(e.message); }
+}
+
+document.addEventListener("click", (e) => {
+  const img = e.target.closest("img[data-ver]");
+  if (!img) return;
+  const v = document.getElementById("visor");
+  document.getElementById("visorImg").src = img.dataset.ver;
+  const a = document.getElementById("visorAbrir"); a.href = img.dataset.ver; a.innerHTML = I.abrir;
+  const d = document.getElementById("visorBajar"); d.href = img.dataset.ver + "&descargar=1"; d.innerHTML = I.bajar;
+  v.querySelector("[data-cerrar]").innerHTML = I.cerrar;
+  v.showModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.matches?.("img[data-ver]")) e.target.click();
+});
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("button, [data-chat], [data-linea]");
+  if (!e.target.closest(".menu")) cerrarMenu();
+  if (!b) return;
+  try {
+    if (b.dataset.votar) { await votar(b.dataset.votar, b.dataset.opcion); return; }
+    if (b.dataset.verVotos) { verVotos(b.dataset.verVotos); return; }
+    if (b.dataset.menu) { const r = b.getBoundingClientRect(); abrirMenu(b.dataset.menu, r.left - 150, r.bottom + 4); return; }
+    if (b.dataset.chat) { sel.chat = b.dataset.chat; citando = null; adjunto = null; pintar(); return; }
+    if (b.dataset.filtro) { filtroChats = b.dataset.filtro; try { localStorage.setItem("filtroChats", filtroChats); } catch {} pintarChats(); return; }
+    if (b.dataset.como) { escribeComo[sel.chat] = b.dataset.como; pintarMain(); return; }
+    if (b.dataset.vincular) {
+      const nombre = document.querySelector(`[data-nombre-linea="${CSS.escape(b.dataset.vincular)}"]`)?.value;
+      await api("vincular", { instancia: b.dataset.vincular, nombre });
+      document.getElementById("dlgDispositivos").close();
+      aviso("QR escaneado: RunOp se está conectando");
+      return;
+    }
+    if (b.dataset.conexion) {
+      if (b.dataset.conexion === "cerrar_sesion" && !(await confirmar("¿Cerrar la sesión desde el teléfono? RunOp tendrá que escanear un QR nuevo.", "Cerrar sesión"))) return;
+      await api("conexion", { instancia: b.dataset.inst, accion: b.dataset.conexion });
+      return;
+    }
+    if (b.dataset.linea && !e.target.closest("button, input")) { sel.instancia = b.dataset.linea; sel.chat = null; pintar(); return; }
+    if (b.id === "abrirDispositivos" || b.id === "verQr") { document.getElementById("dlgDispositivos").showModal(); return; }
+    if (b.id === "volver") { sel.chat = null; pintar(); return; }
+    if (b.id === "enviar") return enviar();
+    if (b.id === "grabar") return empezarGrabacion();
+    if (b.id === "cancelarNota") return terminarGrabacion(false);
+    if (b.id === "enviarNota") return terminarGrabacion(true);
+    if (b.id === "quitarCita") { citando = null; pintarMain(); return; }
+    if (b.id === "quitarAdjunto") { adjunto = null; pintarMain(); return; }
+    if (b.id === "senal") {
+      const k = E.contactos.find((x) => `contacto:${x.id}` === sel.chat);
+      await api(`contactos/${k.id}`, { sinSenal: !k.sinSenal }, "PATCH");
+      return;
+    }
+    if (b.id === "menuChat") {
+      const r = b.getBoundingClientRect();
+      const d = document.createElement("div");
+      d.className = "menu";
+      const k = E.contactos.find((x) => `contacto:${x.id}` === sel.chat);
+      d.innerHTML = `${k ? `<button data-a="sinwa">${k.sinWhatsApp ? "Volver a tener WhatsApp" : "Este número no tiene WhatsApp"}</button>` : ""}
+        <hr><button data-a="limpiar">${I.borrar}Vaciar esta conversación aquí</button>
+        ${k ? `<button data-a="quitar" style="color:var(--peligro)">${I.borrar}Borrar el contacto</button>` : `<button data-a="quitarGrupo" style="color:var(--peligro)">${I.borrar}Borrar el grupo</button>`}`;
+      document.body.appendChild(d);
+      d.style.left = Math.max(8, r.right - 220) + "px"; d.style.top = r.bottom + 4 + "px";
+      d.addEventListener("click", async (ev) => {
+        const a = ev.target.closest("button")?.dataset.a;
+        cerrarMenu();
+        try {
+          if (a === "sinwa") await api(`contactos/${k.id}`, { sinWhatsApp: !k.sinWhatsApp }, "PATCH");
+          if (a === "limpiar") await api("limpiar", { instancia: sel.instancia, chat: sel.chat });
+          if (a === "quitar" && await confirmar(`¿Borrar a ${k.nombre}?`, "Borrar")) { await api(`contactos/${k.id}`, null, "DELETE"); sel.chat = null; }
+          if (a === "quitarGrupo" && await confirmar("¿Borrar este grupo del sandbox?", "Borrar")) { await api(`grupos/${encodeURIComponent(sel.chat)}`, null, "DELETE"); sel.chat = null; }
+          cargar();
+        } catch (er) { aviso(er.message); }
+      });
+      e.stopPropagation();
+      return;
+    }
+    if (b.id === "nuevoContacto") { document.getElementById("nombreContacto").value = ""; document.getElementById("numeroContacto").value = ""; document.getElementById("dlgContacto").showModal(); return; }
+    if (b.id === "crearContacto") {
+      const nombre = document.getElementById("nombreContacto").value;
+      // Vacío = el sandbox inventa uno. Con número, se puede escribir como alguien concreto (el dueño, por ejemplo).
+      const numero = document.getElementById("numeroContacto").value;
+      let k;
+      try { k = await api("contactos", { nombre, numero }); } catch (e) { aviso(e.message); return; }
+      document.getElementById("dlgContacto").close();
+      sel.chat = `contacto:${k.id}`;
+      await cargar();
+      return;
+    }
+    if (b.id === "nuevoGrupo" || b.id === "editarGrupo") {
+      if (!lineaSel()?.numero) { aviso("Primero vincula la línea."); return; }
+      const g = b.id === "editarGrupo" ? E.grupos.find((x) => x.id === sel.chat) : null;
+      document.getElementById("tituloGrupo").textContent = g ? "Miembros del grupo" : "Nuevo grupo";
+      document.getElementById("nombreGrupo").value = g?.nombre || "";
+      document.getElementById("miembrosGrupo").innerHTML = E.contactos.length
+        ? E.contactos.map((k) => `<label><input type="checkbox" value="${h(k.id)}" ${g?.miembros.includes(k.id) ? "checked" : ""}>${h(k.nombre)}</label>`).join("")
+        : `<div class="vacio">Crea primero algún contacto.</div>`;
+      document.getElementById("dlgGrupo").dataset.editando = g?.id || "";
+      document.getElementById("dlgGrupo").showModal();
+      return;
+    }
+    if (b.id === "guardarGrupo") {
+      const dlg = document.getElementById("dlgGrupo");
+      const miembros = [...dlg.querySelectorAll("input[type=checkbox]:checked")].map((x) => x.value);
+      const nombre = document.getElementById("nombreGrupo").value;
+      if (dlg.dataset.editando) await api(`grupos/${encodeURIComponent(dlg.dataset.editando)}`, { nombre, miembros }, "PATCH");
+      else { const g = await api("grupos", { nombre, miembros, instancia: sel.instancia }); sel.chat = g.id; }
+      dlg.close();
+      await cargar();
+      return;
+    }
+    if (b.hasAttribute("data-cerrar")) { b.closest("dialog").close(); return; }
+  } catch (er) { aviso(er.message); }
+});
+
+const temporizadoresEscribe = {};
+function conectarEventos() {
+  const es = new EventSource(`/qr/api/eventos?clave=${encodeURIComponent(CLAVE)}`);
+  es.onmessage = (ev) => {
+    const d = JSON.parse(ev.data);
+    if (d.tipo === "escribiendo") {
+      if (d.instancia !== sel.instancia) return;
+      lineaEscribe[d.chat] = d.estado === "composing" || d.estado === "recording";
+      clearTimeout(temporizadoresEscribe[d.chat]);
+      temporizadoresEscribe[d.chat] = setTimeout(() => { lineaEscribe[d.chat] = false; if (d.chat === sel.chat) pintarEscribiendo(); }, 12000);
+      if (d.chat === sel.chat) pintarEscribiendo();
+      return;
+    }
+    if (d.tipo === "mensajes" && d.chat) lineaEscribe[d.chat] = false;
+    programarCarga();
+  };
+}
+function pintarEscribiendo() {
+  // Como WhatsApp: «escribiendo…» en verde bajo el nombre del chat.
+  const sub = document.querySelector(".barra .titulo span");
+  if (!sub) return;
+  if (lineaEscribe[sel.chat]) {
+    if (!sub.dataset.normal) sub.dataset.normal = sub.textContent;
+    const g = E.grupos.find((x) => x.id === sel.chat);
+    sub.textContent = g ? `${lineaSel()?.nombre || "La línea"} está escribiendo…` : "escribiendo…";
+    sub.style.color = "var(--verde)";
+  } else if (sub.dataset.normal !== undefined) {
+    sub.textContent = sub.dataset.normal; delete sub.dataset.normal; sub.style.color = "";
+  }
+}
+let cargaPendiente = null;
+function programarCarga() { if (cargaPendiente) return; cargaPendiente = setTimeout(() => { cargaPendiente = null; cargar(); }, 120); }
+document.addEventListener("visibilitychange", () => { if (!document.hidden) cargar(); });
+
+/* Claro u oscuro a mano; sin elección, el del sistema. Se recuerda en este navegador. */
+const LUNA = '<svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>';
+const SOL = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+function temaActual() {
+  const elegido = document.documentElement.dataset.theme;
+  if (elegido) return elegido;
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function pintarBotonTema() {
+  const b = document.getElementById("tema");
+  const oscuro = temaActual() === "dark";
+  b.innerHTML = oscuro ? SOL : LUNA;
+  const t = oscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
+  b.title = t; b.setAttribute("aria-label", t);
+}
+try { const g = localStorage.getItem("sandbox-tema"); if (g === "dark" || g === "light") document.documentElement.dataset.theme = g; } catch {}
+pintarBotonTema();
+document.getElementById("tema").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const nuevo = temaActual() === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = nuevo;
+  try { localStorage.setItem("sandbox-tema", nuevo); } catch {}
+  pintarBotonTema();
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", pintarBotonTema);
+
+cargar();
+conectarEventos();
+setInterval(cargar, 20000);
+</script>
+</body>
+</html>

@@ -16,6 +16,7 @@ import { negocios } from "./negocios.js";
 import { conectarSSE } from "./eventos.js";
 import { quienEs, claveAdmin, registrarse, entrarConCuenta } from "./acceso.js";
 import { carasDisponibles, CARPETA_CARAS } from "./caras.js";
+import { rutasQr, socketQr } from "./qr.js";
 
 /* La configuración de esta instalación, si existe: sobrevive a los reinicios
    sin obligar a exportar variables a mano cada vez. (datos/ no va al repo.) */
@@ -81,12 +82,14 @@ app.get("/panel/caras", (_req, res) => res.json(carasDisponibles()));
    firmada de scontent.whatsapp.net que Meta devuelve al listar plantillas.
    El nombre es un azar de 24 bytes, igual de imposible de adivinar. */
 app.get("/muestras/:token", servirMuestra);
+/* WhatsApp por QR (Baileys): su propio mundo y sus propias reglas (ver qr.js). */
+app.use("/qr", rutasQr());
 app.use("/panel", panel);
 app.use(express.static(resolve(process.cwd(), "public")));
 
 app.get("/salud", (_req, res) => res.json({ ok: true, servicio: "wa-sandbox" }));
 
-app.listen(PUERTO, () => {
+const servidor = app.listen(PUERTO, () => {
   claveAdmin();   // que exista desde el primer arranque
   console.log(`\n  wa-sandbox escuchando en http://localhost:${PUERTO}`);
   console.log(`  · clave de administración en datos/admin.clave`);
@@ -95,3 +98,4 @@ app.listen(PUERTO, () => {
   console.log(`\n  Para que tu plataforma le hable, en vez de a Meta:`);
   console.log(`      META_GRAPH_URL=http://localhost:${PUERTO}\n`);
 });
+socketQr(servidor);
