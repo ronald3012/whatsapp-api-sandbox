@@ -18,6 +18,10 @@
  *  - Si la línea está caída, lo que escriben los contactos espera y llega al
  *    reconectar.
  *  - El teléfono puede cerrar la sesión (401) o abrirla en otro sitio (440).
+ *  - Historial: al vincular, el teléfono empuja lo que ya tenía en trozos
+ *    (INITIAL_BOOTSTRAP y RECENT, con la agenda y los pares LID↔número), y
+ *    después solo lo da chat por chat, 50 cada vez, si se le pide
+ *    (`fetchMessageHistory` → trozo ON_DEMAND). Ver «El historial» abajo.
  *
  * RunOp le habla por un WebSocket con su socket-sandbox.ts, que arma los
  * mensajes con Baileys: aquí solo se guarda el mundo (contactos, grupos,
@@ -26,6 +30,7 @@
 import express from "express";
 import { WebSocketServer } from "ws";
 import { randomBytes } from "node:crypto";
+import { deflateSync } from "node:zlib";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
@@ -73,6 +78,38 @@ function persona(c) { return { lid: `${c.lid}@lid`, pn: c.pn, nombre: c.nombre }
 function contactoPorJid(jid) {
   const u = String(jid || "").split("@")[0].split(":")[0];
   return mundo.contactos.find((c) => c.pn === u || c.lid === u) || null;
+}
+/** Un retrato dibujado de 96×96 en PNG (fondo, cabeza y hombros), con colores
+ *  sacados del número: el mismo contacto, siempre la misma cara. */
+function retratoPng(pn) {
+  let h = 0;
+  for (const ch of String(pn)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const hsl = (H, S, L) => {
+    S /= 100; L /= 100;
+    const f = (n) => { const k = (n + H / 30) % 12; return Math.round(255 * (L - S * Math.min(L, 1 - L) * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
+    return [f(0), f(8), f(4)];
+  };
+  const fondo = hsl(h % 360, 55, 62), piel = hsl((h >> 8) % 40 + 15, 45, (h >> 4) % 30 + 45), ropa = hsl((h >> 12) % 360, 45, 35);
+  const N = 96, filas = [];
+  for (let y = 0; y < N; y++) {
+    const fila = Buffer.alloc(1 + N * 3);
+    for (let x = 0; x < N; x++) {
+      let c = fondo;
+      if ((x - 48) ** 2 + (y - 38) ** 2 <= 17 ** 2) c = piel;
+      else if (y >= 65 && ((x - 48) / 34) ** 2 + ((y - 96) / 31) ** 2 <= 1) c = ropa;
+      fila[1 + x * 3] = c[0]; fila[2 + x * 3] = c[1]; fila[3 + x * 3] = c[2];
+    }
+    filas.push(fila);
+  }
+  const crc = (b) => { let c = ~0; for (const v of b) { c ^= v; for (let i = 0; i < 8; i++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1)); } return ~c >>> 0; };
+  const trozo = (tipo, datos) => {
+    const t = Buffer.concat([Buffer.from(tipo), datos]);
+    const l = Buffer.alloc(4); l.writeUInt32BE(datos.length);
+    const c = Buffer.alloc(4); c.writeUInt32BE(crc(t));
+    return Buffer.concat([l, t, c]);
+  };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(N, 0); ihdr.writeUInt32BE(N, 4); ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), trozo("IHDR", ihdr), trozo("IDAT", deflateSync(Buffer.concat(filas))), trozo("IEND", Buffer.alloc(0))]);
 }
 function grupo(jid) { return mundo.grupos.find((g) => g.id === jid) || null; }
 
@@ -137,6 +174,13 @@ function abrir(instancia) {
     lids: lidsDelMundo(),
   });
   avisar({ tipo: "lineas" });
+  // Recién vinculada con «traer historial»: el teléfono lo empuja una sola vez.
+  if (l.historialAlVincular) {
+    const opciones = l.historialAlVincular;
+    delete l.historialAlVincular;
+    guardar();
+    empujarHistorial(instancia, typeof opciones === "object" ? muestraGrande(instancia, opciones) : muestraDeHistorial(instancia));
+  }
   // Lo que escribieron con la línea caída llega ahora, en orden.
   setTimeout(() => {
     for (const m of mundo.mensajes.filter((x) => x.instancia === instancia && x.pendiente)) {
@@ -144,6 +188,161 @@ function abrir(instancia) {
     }
     guardar();
   }, 300);
+}
+
+// ── El historial ─────────────────────────────────────────────────────────
+// Los números de HistorySync.HistorySyncType del proto de WhatsApp.
+const SYNC = { INITIAL_BOOTSTRAP: 0, FULL: 2, RECENT: 3, PUSH_NAME: 4, ON_DEMAND: 6 };
+const DIA = 86_400;
+
+/**
+ * Una muestra realista de lo que trae un teléfono con meses de uso: clientes
+ * con nombre en la agenda, respuestas escritas desde el teléfono, una persona
+ * que solo se conoce por su LID (el par llega con el historial), un adjunto
+ * reciente y uno viejo, un grupo, un mensaje repetido entre dos trozos y uno
+ * de hace 200 días. Lo más viejo de Ana NO va en el empuje: se queda
+ * «en el teléfono» para cuando lo pidan (ON_DEMAND).
+ */
+function muestraDeHistorial(instancia) {
+  // La misma muestra cada vez: repetir el empuje tiene que traer los MISMOS mensajes.
+  mundo.historialMuestra = mundo.historialMuestra || {};
+  if (mundo.historialMuestra[instancia]) return mundo.historialMuestra[instancia];
+  const l = mundo.lineas[instancia];
+  const t = Math.floor(ahora() / 1000);
+  const p = (nombre) => ({ lid: `${nuevoLid()}@lid`, pn: nuevoNumero(), nombre });
+  const ana = p("Ana H."), beto = p("Beto H."), carla = p("Carla H.");
+  const chat = (x) => x.lid;
+  const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  const PDF = Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF").toString("base64");
+  const it = (de, diasAtras, contenido, extra = {}) => ({
+    t: "entrante", chat: chat(de), de, ts: t - Math.round(diasAtras * DIA), id: idTelefono(), contenido, ...extra,
+  });
+  const txt = (texto) => ({ tipo: "texto", texto });
+  const repetido = it(beto, 3, txt("¿Tienen el modelo en negro?"));
+  const trozo1 = [
+    repetido,
+    it(beto, 2.9, txt("Sí, en negro y en gris. ¿Cuál prefieres?"), { desdeElTelefono: true }),
+    it(ana, 5, { tipo: "imagen", base64: PNG, mimetype: "image/png", caption: "Así quedó la mesa" }),
+    it(ana, 4.9, txt("¡Qué bien quedó! Gracias por la foto"), { desdeElTelefono: true }),
+  ];
+  const trozo2 = [
+    repetido, // WhatsApp repite mensajes entre trozos: no puede entrar dos veces
+    it(ana, 60, { tipo: "documento", base64: PDF, mimetype: "application/pdf", fileName: "cotizacion-mesa.pdf" }, { desdeElTelefono: true }),
+    it(ana, 61, txt("Me mandas la cotización de la mesa de 6 puestos?")),
+    it(carla, 20, txt("Buenas, ¿hacen envíos a Santiago?")),
+    it(carla, 19.9, txt("Sí, los martes y viernes. 300 pesos el envío."), { desdeElTelefono: true }),
+    it(beto, 200, txt("Mensaje de hace 200 días: NO debe entrar")),
+    { ...it(beto, 1, txt("Mensaje de un grupo: NO debe entrar")), chat: `120363${digitos(12)}@g.us` },
+  ];
+  const archivo = [
+    it(ana, 150, txt("Hola, ¿venden mesas de comedor?")),
+    it(ana, 149.9, txt("Sí, tenemos de 4 y de 6 puestos. ¿Para cuántas personas?"), { desdeElTelefono: true }),
+    it(ana, 190, txt("Mensaje de Ana de hace 190 días: NO debe entrar")),
+  ];
+  return (mundo.historialMuestra[instancia] = {
+    personas: { ana, beto, carla },
+    trozos: [
+      { syncType: SYNC.INITIAL_BOOTSTRAP, progress: null, chunkOrder: 1, items: trozo1,
+        lids: { [ana.lid]: `${ana.pn}@s.whatsapp.net`, [beto.lid]: `${beto.pn}@s.whatsapp.net` },
+        contactos: [{ id: `${ana.pn}@s.whatsapp.net`, name: "Ana Historial (agenda)", lid: ana.lid, phoneNumber: `${ana.pn}@s.whatsapp.net` }],
+        estado: "complete" },
+      // Carla solo se conoce por su LID: el par llega en este trozo.
+      { syncType: SYNC.RECENT, progress: 100, chunkOrder: 2, items: trozo2,
+        lids: { [carla.lid]: `${carla.pn}@s.whatsapp.net` },
+        contactos: [{ id: carla.lid, name: "Carla Historial (agenda)", phoneNumber: `${carla.pn}@s.whatsapp.net` }],
+        estado: "complete" },
+    ],
+    archivo,
+    linea: l?.numero,
+  });
+}
+
+function empujarHistorial(instancia, muestra) {
+  mundo.historialArchivo = mundo.historialArchivo || {};
+  mundo.historialArchivo[instancia] = muestra.archivo;
+  mundo.historialCallados = mundo.historialCallados || {};
+  mundo.historialCallados[instancia] = muestra.callados || [];
+  guardar();
+  muestra.trozos.forEach((trozo, i) => setTimeout(() => {
+    if (trozo.cortar === "caida") {
+      // El servidor de RunOp se cae a mitad del empuje: el teléfono deja de mandar.
+      const c = conexiones.get(instancia);
+      if (c) enviar(c.ws, { t: "cerrar", codigo: 428, motivo: "Connection Closed" });
+      return;
+    }
+    if (trozo.soloEstado) return aLinea(instancia, { t: "historial_estado", syncType: trozo.syncType, estado: trozo.soloEstado });
+    aLinea(instancia, { t: "historial", ...trozo });
+  }, 400 * (i + 1)));
+}
+
+/**
+ * Un teléfono con muchas conversaciones, para probar lo que FALTÓ del
+ * historial (RunOp: historial-pendiente.ts y copia-historial.ts). Cada
+ * trozo trae su lista de conversaciones (`chats`, con la forma de
+ * Utils/history.js de Baileys) y sus mensajes, como WhatsApp:
+ *
+ *  - INITIAL_BOOTSTRAP: la lista de TODAS (y un grupo y una conversación de
+ *    hace 200 días, que RunOp no cuenta), y lo reciente de las primeras;
+ *    las últimas `sinMensajes` van en la lista sin ningún mensaje.
+ *  - RECENT 40 %: algo más de las primeras.
+ *  - RECENT 100 % (solo si no se corta): lo de las demás.
+ *  - En el teléfono, para pedirlo (ON_DEMAND): lo viejo de cada una
+ *    (40 a 170 días).
+ *
+ * `cortar`: null = completo; "pausa" = el teléfono deja de mandar y Baileys
+ * avisa «paused»; "caida" = se corta la conexión a mitad. `callados`: los
+ * índices de las conversaciones que el teléfono nunca devuelve. La primera
+ * conversación trae `endOfHistoryTransferType` 1 («no queda nada más»).
+ */
+function muestraGrande(instancia, o = {}) {
+  const n = Math.max(2, Math.min(300, Number(o.conversaciones) || 12));
+  const sinMensajes = Math.min(n - 1, Number(o.sinMensajes ?? 4));
+  const t = Math.floor(ahora() / 1000);
+  const etiqueta = String(o.etiqueta || "Conv").slice(0, 20);
+  const gente = Array.from({ length: n }, (_, i) => ({ lid: `${nuevoLid()}@lid`, pn: nuevoNumero(), nombre: `${etiqueta} ${String(i + 1).padStart(2, "0")}` }));
+  const viejo = { lid: `${nuevoLid()}@lid`, pn: nuevoNumero(), nombre: `${etiqueta} vieja` };
+  const it = (de, diasAtras, texto, extra = {}) => ({
+    t: "entrante", chat: de.lid, de, ts: t - Math.round(diasAtras * DIA), id: idTelefono(), contenido: { tipo: "texto", texto }, ...extra,
+  });
+  const chatDe = (p, i, dias) => ({ id: p.lid, pnJid: `${p.pn}@s.whatsapp.net`, name: p.nombre, conversationTimestamp: t - Math.round(dias * DIA), ...(i === 0 ? { endOfHistoryTransfer: true, endOfHistoryTransferType: 1 } : {}) });
+  const conMensajes = gente.slice(0, n - sinMensajes);
+  const mitad = Math.ceil(conMensajes.length / 2);
+  const lids = {};
+  for (const p of [...gente, viejo]) lids[p.lid] = `${p.pn}@s.whatsapp.net`;
+  const grupoJid = `120363${digitos(12)}@g.us`;
+
+  const inicial = conMensajes.slice(0, mitad).flatMap((p, i) => [
+    it(p, 1 + i * 0.1, `Hola, soy ${p.nombre}: lo de esta semana`),
+    it(p, 0.9 + i * 0.1, `Recibido, ${p.nombre}`, { desdeElTelefono: true }),
+  ]);
+  const reciente1 = conMensajes.slice(0, mitad).map((p) => it(p, 12, `${p.nombre}: lo de hace dos semanas`));
+  const reciente2 = conMensajes.slice(mitad).flatMap((p) => [
+    it(p, 3, `${p.nombre}: lo de esta semana`),
+    it(p, 15, `${p.nombre}: lo de hace dos semanas`),
+  ]);
+  const archivo = gente.flatMap((p, i) => [
+    it(p, 40 + i, `${p.nombre}: lo de hace ${40 + i} días (estaba en el teléfono)`),
+    it(p, 90 + i, `${p.nombre}: lo de hace ${90 + i} días (estaba en el teléfono)`, { desdeElTelefono: true }),
+    it(p, 170, `${p.nombre}: lo de hace 170 días (estaba en el teléfono)`),
+  ]);
+  const lista = [
+    ...gente.map((p, i) => chatDe(p, i, i < conMensajes.length ? 1 + i * 0.1 : 2 + i)),
+    { id: viejo.lid, pnJid: `${viejo.pn}@s.whatsapp.net`, name: viejo.nombre, conversationTimestamp: t - 200 * DIA },
+    { id: grupoJid, name: `${etiqueta} grupo`, conversationTimestamp: t - DIA },
+  ];
+  const trozos = [
+    { syncType: SYNC.INITIAL_BOOTSTRAP, progress: null, chunkOrder: 1, items: inicial, chats: lista, lids, estado: "complete",
+      contactos: gente.map((p) => ({ id: p.lid, name: p.nombre, phoneNumber: `${p.pn}@s.whatsapp.net` })) },
+    { syncType: SYNC.RECENT, progress: 40, chunkOrder: 2, items: reciente1, chats: [] },
+  ];
+  if (o.cortar === "pausa") trozos.push({ syncType: SYNC.RECENT, soloEstado: "paused" });
+  else if (o.cortar === "caida") trozos.push({ cortar: "caida" });
+  else trozos.push({ syncType: SYNC.RECENT, progress: 100, chunkOrder: 3, items: reciente2, chats: [], estado: "complete" });
+  const callados = (o.callados || []).map((i) => gente[i]?.lid).filter(Boolean);
+  return {
+    personas: gente.map((p, i) => ({ i, nombre: p.nombre, numero: p.pn, lid: p.lid, enLista: true, mensajesEnEmpuje: i < conMensajes.length, callado: callados.includes(p.lid) })),
+    trozos, archivo, callados, linea: mundo.lineas[instancia]?.numero,
+  };
 }
 
 function alConectar(ws, instancia) {
@@ -192,6 +391,22 @@ function alMensajeDeRunOp(instancia, c, d) {
       });
       return responder(r);
     }
+    case "foto": {
+      /* La foto de perfil, como `profilePictureUrl` de Baileys (T-129 de
+         RunOp): una URL firmada con su vencimiento en `oe` (segundos, hex), o
+         el error de WhatsApp si la tiene privada o no tiene. Se cuenta cada
+         pregunta para poder comprobar que RunOp no pide una por mensaje. */
+      const k = contactoPorJid(d.jid);
+      mundo.fotosPedidas = mundo.fotosPedidas || {};
+      if (k) mundo.fotosPedidas[k.pn] = (mundo.fotosPedidas[k.pn] || 0) + 1;
+      guardar();
+      if (!k || k.sinWhatsApp || k.foto === "sin") return responder(null, "item-not-found");
+      if (k.foto === "privada") return responder(null, "not-authorized");
+      const vida = Number(k.fotoVidaS) > 0 ? Number(k.fotoVidaS) : 3 * 86_400;
+      const oe = Math.floor(ahora() / 1000 + vida).toString(16);
+      const base = process.env.WA_SANDBOX_URL_PUBLICA || `http://localhost:${process.env.PORT || 8095}`;
+      return responder(`${base}/qr/foto/${k.pn}.png?oe=${oe}&tipo=${d.tipo === "image" ? "image" : "preview"}`);
+    }
     case "grupos": {
       const r = {};
       for (const g of mundo.grupos.filter((x) => x.lineas.includes(instancia))) {
@@ -220,6 +435,23 @@ function alMensajeDeRunOp(instancia, c, d) {
       return;
     }
     case "suscribir": return;
+    case "historial_bajo_demanda": {
+      responder(idTelefono());
+      // Teléfono apagado o una conversación que nunca devuelve: no contesta nada.
+      const callado = (mundo.historialCallados?.[instancia] ?? []).includes(d.chat);
+      mundo.historialPedidos = mundo.historialPedidos || {};
+      (mundo.historialPedidos[instancia] = mundo.historialPedidos[instancia] || []).push({ chat: d.chat, en: ahora(), contesto: !(l?.telefonoApagado || callado) });
+      guardar();
+      if (l?.telefonoApagado || callado) return;
+      // El teléfono contesta un rato después, por su lado.
+      setTimeout(() => {
+        const archivo = (mundo.historialArchivo?.[instancia] ?? []).filter((x) => x.chat === d.chat && x.ts * 1000 < Number(d.antesDeMs));
+        archivo.sort((a, b) => a.ts - b.ts);
+        const pagina = archivo.slice(-Math.min(50, Number(d.cuantos) || 50));
+        aLinea(instancia, { t: "historial", syncType: SYNC.ON_DEMAND, progress: null, chunkOrder: null, items: pagina });
+      }, 300);
+      return;
+    }
     case "salir": {
       // La sesión se cerró desde RunOp: el teléfono ve desaparecer el dispositivo.
       delete mundo.lineas[instancia];
@@ -374,6 +606,20 @@ export function rutasQr() {
     res.sendFile(f);
   });
 
+  /* La foto de perfil de un contacto de mentira: un retrato DIBUJADO (no es
+     de nadie), con su color. En JPEG/PNG como WhatsApp (pps.whatsapp.net da
+     JPEG): un SVG no lo pinta la app del teléfono. Como el CDN de WhatsApp,
+     sin clave pero con la firma de vencimiento: pasado el `oe`, 403. */
+  r.get("/foto/:pn.png", (req, res) => {
+    const k = mundo.contactos.find((c) => c.pn === String(req.params.pn));
+    const oe = parseInt(String(req.query.oe || ""), 16);
+    if (!k || k.foto === "sin" || k.foto === "privada") return res.status(404).end();
+    if (!Number.isFinite(oe) || oe * 1000 < ahora()) return res.status(403).send("URL signature expired");
+    res.setHeader("content-type", "image/png");
+    res.setHeader("cache-control", "public, max-age=3600");
+    res.send(retratoPng(k.pn));
+  });
+
   // Desde aquí, todo pide la clave.
   r.use("/api", (req, res, next) => {
     if (!claveValida(req.query.clave || req.get("x-clave"))) return res.status(401).json({ error: "Clave no válida." });
@@ -420,13 +666,42 @@ export function rutasQr() {
     const c = conexiones.get(instancia);
     if (!c || c.fase !== "qr" || !c.qr) return res.status(409).json({ error: "Esa línea no está mostrando un QR ahora. Dale a «Conectar» en el panel de RunOp." });
     clearTimeout(c.temporizador);
-    const l = { numero: nuevoNumero(), lid: nuevoLid(), nombre: (nombre || "").trim() || "Negocio de prueba", vinculada: ahora() };
+    const l = { numero: nuevoNumero(), lid: nuevoLid(), nombre: (nombre || "").trim() || "Negocio de prueba", vinculada: ahora(), ...(req.body?.historial ? { historialAlVincular: typeof req.body.historial === "object" ? req.body.historial : true } : {}) };
     mundo.lineas[instancia] = l;
     guardar();
     c.fase = "vinculando";
     enviar(c.ws, { t: "vinculada", me: { id: `${l.numero}:7@s.whatsapp.net`, lid: `${l.lid}:7@lid`, name: l.nombre } });
     avisar({ tipo: "lineas" });
     res.json({ ok: true, linea: l });
+  });
+
+  /* Empujar ahora la muestra de historial a una línea abierta (como si el
+     teléfono la mandara), para repetirla y comprobar que no duplica. */
+  r.post("/api/historial", (req, res) => {
+    const { instancia, grande } = req.body || {};
+    if (estadoLinea(instancia) !== "conectada") return res.status(409).json({ error: "La línea no está conectada." });
+    const muestra = grande ? muestraGrande(instancia, grande) : muestraDeHistorial(instancia);
+    empujarHistorial(instancia, muestra);
+    res.json({ ok: true, personas: muestra.personas, trozos: muestra.trozos.length, archivo: muestra.archivo.length });
+  });
+
+  /* El teléfono de la línea, apagado o encendido: apagado no contesta las
+     peticiones de historial (la línea sigue conectada a WhatsApp). */
+  r.post("/api/telefono", (req, res) => {
+    const { instancia, apagado } = req.body || {};
+    const l = mundo.lineas[instancia];
+    if (!l) return res.status(404).json({ error: "No existe esa línea." });
+    l.telefonoApagado = !!apagado;
+    guardar();
+    res.json({ ok: true, apagado: l.telefonoApagado });
+  });
+
+  /* Lo que RunOp le pidió al teléfono (para comprobar tandas y pausas). */
+  // Cuántas veces preguntó RunOp por la foto de cada número.
+  r.get("/api/fotos/pedidos", (_req, res) => res.json(mundo.fotosPedidas || {}));
+
+  r.get("/api/historial/pedidos", (req, res) => {
+    res.json({ pedidos: mundo.historialPedidos?.[req.query.instancia] ?? [] });
   });
 
   r.post("/api/conexion", (req, res) => {
@@ -470,6 +745,9 @@ export function rutasQr() {
     if (!k) return res.status(404).json({ error: "No existe." });
     if (typeof req.body?.sinSenal === "boolean") k.sinSenal = req.body.sinSenal;
     if (typeof req.body?.sinWhatsApp === "boolean") k.sinWhatsApp = req.body.sinWhatsApp;
+    // La foto de perfil: «visible» (por defecto), «privada» o «sin»; y cuánto dura su URL.
+    if (["visible", "privada", "sin"].includes(req.body?.foto)) k.foto = req.body.foto;
+    if (req.body?.fotoVidaS !== undefined) k.fotoVidaS = Number(req.body.fotoVidaS) || undefined;
     guardar();
     // Recuperó la señal: le llega lo que estaba esperando.
     if (k.sinSenal === false) for (const m of mundo.mensajes.filter((x) => x.chat === `contacto:${k.id}` && x.estado === "enviado")) entregar(m.instancia, m);
