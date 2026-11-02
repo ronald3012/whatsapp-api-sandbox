@@ -14,7 +14,7 @@ import { graph, servirMuestra } from "./graph.js";
 import { panel } from "./panel.js";
 import { negocios } from "./negocios.js";
 import { conectarSSE } from "./eventos.js";
-import { quienEs, claveAdmin, registrarse, entrarConCuenta } from "./acceso.js";
+import { quienEs, claveAdmin, registrarse, entrarConCuenta, crearEnsayo } from "./acceso.js";
 import { carasDisponibles, CARPETA_CARAS } from "./caras.js";
 import { rutasQr, socketQr } from "./qr.js";
 
@@ -65,6 +65,8 @@ app.get("/panel/quien", (req, res) => {
 /* Autoservicio: cuentas propias del sandbox — registrarse y entrar. */
 app.post("/panel/registrar", registrarse);
 app.post("/panel/entrar", entrarConCuenta);
+/* Un número de prueba en una llamada, sin cuenta: el botón de las plataformas. */
+app.post("/panel/ensayo", crearEnsayo);
 /* La gestión de negocios va ANTES que el panel: es solo-admin y el panel es solo-negocio. */
 app.use("/panel/negocios", negocios);
 /* El río de eventos: la pantalla se entera de lo que pasa sin preguntar.

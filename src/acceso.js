@@ -191,3 +191,71 @@ export async function entrarConCuenta(req, res) {
   fallosPorCuenta.delete(email);
   res.json({ clave: d.clave, nombre: d.nombre });
 }
+
+/**
+ * Un negocio de ensayo en una sola llamada, sin cuenta.
+ *
+ * Es la puerta del «crear número de prueba con un botón»: una plataforma que
+ * quiere probar contra el sandbox la llama desde su servidor y recibe, de
+ * vuelta, lo mismo que hoy hay que ir copiando a mano de la pestaña Conectar
+ * —número, token, secreto de la app, token de verificación— más la clave para
+ * entrar a la pantalla ya dentro. Igual que la conexión de Meta con un clic:
+ * genérica, no sabe ni le importa qué plataforma la llama.
+ *
+ * Sin cuenta a propósito: quien llega por aquí no quiere otro correo y otra
+ * contraseña que recordar. El dueño nace con su clave y nada más; entra con el
+ * enlace `/?clave=…` que guarda la plataforma que lo creó.
+ *
+ * Trae un cliente inventado ya creado: un número de prueba sin nadie que le
+ * escriba obliga a dar un paso más antes de poder probar nada.
+ *
+ * El webhook NO se recibe aquí: la plataforma suele necesitar las credenciales
+ * para crear su canal y solo entonces sabe a qué dirección avisar. Lo pone
+ * después con PATCH /panel/cuentas/:id y la clave, como cualquier dueño. Las
+ * entregas siguen limitadas a direcciones públicas (webhooks.js).
+ *
+ * El freno: sin cuenta, lo único que frena el abuso es un tope por dirección.
+ */
+const ensayosPorIp = new Map();               // ip → [instantes]
+const ENSAYOS_POR_HORA = 10;
+
+function ipDe(req) {
+  const reenviada = String(req.get?.("x-forwarded-for") || "").split(",")[0].trim();
+  return reenviada || req.socket?.remoteAddress || "?";
+}
+
+export function crearEnsayo(req, res) {
+  const nombre = String(req.body?.nombre || "").trim().slice(0, 80) || "Negocio de prueba";
+  const ip = ipDe(req);
+  const ahora = Date.now();
+  const recientes = (ensayosPorIp.get(ip) || []).filter((t) => ahora - t < 3600_000);
+  if (recientes.length >= ENSAYOS_POR_HORA) {
+    return res.status(429).json({ error: "Demasiados números de prueba en la última hora. Prueba más tarde." });
+  }
+  recientes.push(ahora);
+  ensayosPorIp.set(ip, recientes);
+
+  const d = { id: "sb" + randomBytes(6).toString("hex"), nombre, clave: nuevaClaveDeNegocio(), creado: ahora };
+  db.prepare(`INSERT INTO duenos (id, nombre, clave, creado) VALUES (@id, @nombre, @clave, @creado)`).run(d);
+  const { cuenta, numero } = crearNegocio({ dueno: d.id, nombre });
+
+  const cliente = {
+    wa_id: "1809" + String(randomBytes(4).readUInt32BE(0) % 10_000_000).padStart(7, "0"),
+    numero_id: numero.id, dueno: d.id, nombre: "Cliente de prueba", creado: ahora,
+  };
+  db.prepare(
+    `INSERT INTO contactos (wa_id, numero_id, dueno, nombre, user_id, username, creado)
+     VALUES (@wa_id, @numero_id, @dueno, @nombre, NULL, NULL, @creado)`,
+  ).run(cliente);
+
+  res.json({
+    clave: d.clave,
+    waba_id: cuenta.id,
+    phone_number_id: numero.id,
+    display_phone_number: numero.display_phone_number,
+    access_token: cuenta.token,
+    app_secret: cuenta.app_secret,
+    verify_token: cuenta.verify_token,
+    cliente: { wa_id: cliente.wa_id, nombre: cliente.nombre },
+  });
+}
