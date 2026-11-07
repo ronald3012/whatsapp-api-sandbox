@@ -83,29 +83,28 @@ export function nuevaClaveDeNegocio() {
   return "sb_" + randomBytes(24).toString("base64url");
 }
 
-/* ── Autoservicio: cuentas PROPIAS del sandbox ──────────────────────────────
+/* ── Entrar con correo y contraseña ─────────────────────────────────────────
  *
- * El sandbox es un producto independiente — un clon de WhatsApp que puede
- * servirle a cualquier proyecto — así que las cuentas son suyas: quien quiera
- * probar se registra aquí con email y contraseña y su negocio nace solo. Nada
- * de validar contra otra plataforma.
+ * Desde el 6 nov 2026 el sandbox es exclusivo de RunOp AI: ya no hay registro
+ * público. Las cuentas nacen solo por `POST /panel/ensayo` (el botón
+ * «WhatsApp de prueba» de RunOp) y entran con su enlace `/?clave=…`.
+ *
+ * Entrar con correo y contraseña se queda, discreto en la portada, para las
+ * cuentas que ya existían: quitarlo las dejaría fuera sin aviso y sin manera
+ * de recuperar sus conversaciones. Nadie nuevo puede crear una.
  *
  * La contraseña se guarda con scrypt (sal propia por cuenta, comparación en
  * tiempo constante). La clave `sb_…` sigue siendo lo que aísla por debajo,
- * pero quien se registra no la ve nunca.
+ * pero quien entra no la ve nunca.
  */
 import { scrypt as scryptCb } from "node:crypto";
 import { promisify } from "node:util";
 
 /* Asíncrono a propósito: `scryptSync` tarda ~30 ms y corre en el hilo único.
-   Unas decenas de intentos de entrada por segundo —sin credenciales, sin
-   registrarse— dejaban mudo el sandbox entero para todos los inquilinos. */
+   Unas decenas de intentos de entrada por segundo dejaban mudo el sandbox
+   entero para todos los inquilinos. */
 const scrypt = promisify(scryptCb);
 
-const hashDeContrasena = async (contrasena) => {
-  const s = randomBytes(16).toString("hex");
-  return s + ":" + (await scrypt(contrasena, s, 32)).toString("hex");
-};
 const contrasenaCuadra = async (contrasena, guardado) => {
   const [s, hash] = String(guardado || "").split(":");
   if (!s || !hash) return false;
@@ -114,37 +113,9 @@ const contrasenaCuadra = async (contrasena, guardado) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 
-export async function registrarse(req, res) {
-  const nombre = String(req.body?.nombre || "").trim();
-  const email = String(req.body?.email || "").trim().toLowerCase();
-  const contrasena = String(req.body?.password || "");
-  if (!nombre || !email || !contrasena) {
-    return res.status(400).json({ error: "Hacen falta el nombre del negocio, el email y una contraseña." });
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({ error: "Ese email no tiene pinta de email." });
-  }
-  if (contrasena.length < 6) {
-    return res.status(400).json({ error: "La contraseña necesita al menos 6 caracteres." });
-  }
-  if (db.prepare(`SELECT 1 FROM duenos WHERE email = ?`).get(email)) {
-    return res.status(409).json({ error: "Ya hay una cuenta con ese email. Entra con tu contraseña." });
-  }
-  const d = {
-    id: "sb" + randomBytes(6).toString("hex"),
-    nombre, email,
-    clave: nuevaClaveDeNegocio(),
-    pass_hash: await hashDeContrasena(contrasena),
-    creado: Date.now(),
-  };
-  db.prepare(
-    `INSERT INTO duenos (id, nombre, clave, email, pass_hash, creado)
-     VALUES (@id, @nombre, @clave, @email, @pass_hash, @creado)`,
-  ).run(d);
-  /* Su primer negocio nace aquí, con el nombre que acaba de escribir. Volver a
-     preguntárselo nada más entrar era pedir dos veces lo mismo. */
-  crearNegocio({ dueno: d.id, nombre });
-  res.json({ clave: d.clave, nombre: d.nombre });
+/** El registro cerró: se contesta claro, no con un 401 que parezca un fallo de clave. */
+export function registroCerrado(_req, res) {
+  res.status(410).json({ error: "Aquí ya no se crean cuentas. El WhatsApp de prueba se abre desde RunOp AI." });
 }
 
 /**
@@ -179,14 +150,14 @@ function anotarFallo(email) {
 export async function entrarConCuenta(req, res) {
   const email = String(req.body?.email || "").trim().toLowerCase();
   const contrasena = String(req.body?.password || "");
-  if (!email || !contrasena) return res.status(400).json({ error: "Faltan el email o la contraseña." });
+  if (!email || !contrasena) return res.status(400).json({ error: "Faltan el correo o la contraseña." });
   const espera = esperaPorFallos(email);
   if (espera) await new Promise((v) => setTimeout(v, espera));
 
   const d = db.prepare(`SELECT * FROM duenos WHERE email = ?`).get(email);
   if (!d || !(await contrasenaCuadra(contrasena, d.pass_hash))) {
     anotarFallo(email);
-    return res.status(401).json({ error: "Email o contraseña incorrectos." });
+    return res.status(401).json({ error: "Correo o contraseña incorrectos." });
   }
   fallosPorCuenta.delete(email);
   res.json({ clave: d.clave, nombre: d.nombre });

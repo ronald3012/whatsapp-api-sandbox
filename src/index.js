@@ -14,7 +14,7 @@ import { graph, servirMuestra } from "./graph.js";
 import { panel } from "./panel.js";
 import { negocios } from "./negocios.js";
 import { conectarSSE } from "./eventos.js";
-import { quienEs, claveAdmin, registrarse, entrarConCuenta, crearEnsayo } from "./acceso.js";
+import { quienEs, claveAdmin, registroCerrado, entrarConCuenta, crearEnsayo } from "./acceso.js";
 import { carasDisponibles, CARPETA_CARAS } from "./caras.js";
 import { rutasQr, socketQr } from "./qr.js";
 
@@ -62,10 +62,11 @@ app.get("/panel/quien", (req, res) => {
      la misma dirección en cada negocio. */
   res.json({ admin: q.admin, nombre: q.nombre, webhookDefecto: process.env.SANDBOX_WEBHOOK_DEFECTO || "" });
 });
-/* Autoservicio: cuentas propias del sandbox — registrarse y entrar. */
-app.post("/panel/registrar", registrarse);
+/* Exclusivo de RunOp AI: no hay registro público. Correo y contraseña quedan
+   solo para las cuentas que ya existían (ver acceso.js). */
+app.post("/panel/registrar", registroCerrado);
 app.post("/panel/entrar", entrarConCuenta);
-/* Un número de prueba en una llamada, sin cuenta: el botón de las plataformas. */
+/* Un número de prueba en una llamada, sin cuenta: el botón «WhatsApp de prueba» de RunOp AI. */
 app.post("/panel/ensayo", crearEnsayo);
 /* La gestión de negocios va ANTES que el panel: es solo-admin y el panel es solo-negocio. */
 app.use("/panel/negocios", negocios);

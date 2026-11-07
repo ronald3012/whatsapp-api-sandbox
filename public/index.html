@@ -3,7 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ensayo de WhatsApp</title>
+<title>Ensayo de WhatsApp · RunOp AI</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='240' height='240' rx='54' fill='%23b7ff27'/%3E%3Cg transform='rotate(-35 120 120)'%3E%3Crect x='46' y='78' width='148' height='84' rx='42' fill='none' stroke='%230b0b0b' stroke-width='30'/%3E%3C/g%3E%3C/svg%3E">
+<script>
+  /* Claro por defecto, oscuro solo si se pide a mano: no se sigue al sistema
+     operativo. Va aquí arriba para que la página no nazca oscura y cambie. */
+  try { document.documentElement.setAttribute('data-theme', localStorage.getItem('wa-sandbox-tema') === 'dark' ? 'dark' : 'light'); }
+  catch { document.documentElement.setAttribute('data-theme', 'light'); }
+</script>
 <style>
   /* Con la cara de WhatsApp Web, a propósito.
      Quien abre esto quiere probar su agente antes de soltarlo con clientes de
@@ -26,7 +33,7 @@
     --texto:#111b21; --tenue:#667781; --debil:#8696a0; --tick:#53bdeb;
     --malo:#e5533d; --ambar:#b98600;
     --fil-bg:#d9fdd3; --fil-tx:#017561;
-    --patron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23000' stroke-opacity='.045' stroke-width='1.6'%3E%3Ccircle cx='34' cy='30' r='11'/%3E%3Cpath d='M84 22h22v18H84z'/%3E%3Cpath d='M150 18l10 18h-20z'/%3E%3Cpath d='M200 20c8 0 14 6 14 13s-6 13-14 13h-3l-6 6v-6c-5-2-8-7-8-13 0-7 6-13 17-13z'/%3E%3Cpath d='M28 92c0-7 5-12 12-12s12 5 12 12-5 12-12 12h-2l-6 5v-5c-4-2-4-7-4-12z'/%3E%3Ccircle cx='104' cy='96' r='10'/%3E%3Cpath d='M148 86h26v22h-26z'/%3E%3Cpath d='M206 88l12 20h-24z'/%3E%3Cpath d='M30 158h24v20H30z'/%3E%3Cpath d='M96 152l12 22H84z'/%3E%3Ccircle cx='160' cy='164' r='12'/%3E%3Cpath d='M204 154c9 0 15 6 15 14s-6 14-15 14h-3l-6 6v-6c-4-3-6-8-6-14 0-8 6-14 15-14z'/%3E%3Ccircle cx='40' cy='224' r='10'/%3E%3Cpath d='M92 216h24v18H92z'/%3E%3Cpath d='M158 214l11 20h-22z'/%3E%3Cpath d='M200 220h26v16h-26z'/%3E%3C/g%3E%3C/svg%3E");
+    --patron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23000' stroke-opacity='.03' stroke-width='1.6'%3E%3Ccircle cx='34' cy='30' r='11'/%3E%3Cpath d='M84 22h22v18H84z'/%3E%3Cpath d='M150 18l10 18h-20z'/%3E%3Cpath d='M200 20c8 0 14 6 14 13s-6 13-14 13h-3l-6 6v-6c-5-2-8-7-8-13 0-7 6-13 17-13z'/%3E%3Cpath d='M28 92c0-7 5-12 12-12s12 5 12 12-5 12-12 12h-2l-6 5v-5c-4-2-4-7-4-12z'/%3E%3Ccircle cx='104' cy='96' r='10'/%3E%3Cpath d='M148 86h26v22h-26z'/%3E%3Cpath d='M206 88l12 20h-24z'/%3E%3Cpath d='M30 158h24v20H30z'/%3E%3Cpath d='M96 152l12 22H84z'/%3E%3Ccircle cx='160' cy='164' r='12'/%3E%3Cpath d='M204 154c9 0 15 6 15 14s-6 14-15 14h-3l-6 6v-6c-4-3-6-8-6-14 0-8 6-14 15-14z'/%3E%3Ccircle cx='40' cy='224' r='10'/%3E%3Cpath d='M92 216h24v18H92z'/%3E%3Cpath d='M158 214l11 20h-22z'/%3E%3Cpath d='M200 220h26v16h-26z'/%3E%3C/g%3E%3C/svg%3E");
     --f:"Segoe UI",Helvetica,-apple-system,system-ui,sans-serif;
     --mono:ui-monospace,"SF Mono",Menlo,monospace;
   }
@@ -353,32 +360,110 @@
   .lightbox{position:fixed;inset:0;background:rgba(11,20,26,.92);display:grid;place-items:center;z-index:99;cursor:zoom-out}
   .lightbox img{max-width:92vw;max-height:92vh}
 
-  /* La puerta: sin clave no se pinta ni un chat. */
-  .puerta{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
-    background:var(--panel)}
-  /* `hidden` pone display:none con prioridad de navegador, y el display:flex
-     de arriba se lo come: sin esta línea la puerta invisible sigue delante
-     tragándose los clics de toda la pantalla. */
-  .puerta[hidden]{display:none}
-  .puerta .tarjeta{width:min(400px,92vw);background:var(--superficie);border:1px solid var(--linea);
-    border-radius:14px;padding:34px 32px;box-shadow:0 8px 30px rgba(0,0,0,.12)}
-  .puerta h2{margin:0 0 6px;font-size:19px}
-  .puerta p{margin:0 0 18px;font-size:13.5px;opacity:.75}
-  .puerta input{width:100%;box-sizing:border-box;border:1px solid var(--linea2);border-radius:8px;
-    padding:10px 12px;font-size:14px;background:var(--entrada);color:var(--texto)}
-  .puerta .mal:empty{display:none}
+  /* La portada: sin clave no se pinta ni un chat. Copia la pantalla de entrada
+     de WhatsApp Web (fondo crema, tarjetas blancas de 25 px con borde fino,
+     verde #25d366, Roboto), medida sobre la real el 6 nov 2026. En vez del
+     código QR va el camino de verdad: se abre desde RunOp AI con su botón
+     «WhatsApp de prueba». Sin el logo de WhatsApp: el nombre visible es
+     «Ensayo de WhatsApp», con la marca pequeña de RunOp AI. */
+  @font-face{font-family:"Roboto Ensayo";src:url(/fuentes/roboto-400.woff2) format("woff2");font-weight:400;font-display:swap}
+  @font-face{font-family:"Roboto Ensayo";src:url(/fuentes/roboto-500.woff2) format("woff2");font-weight:500;font-display:swap}
+  :root{--pt-fondo:#fcf5eb;--pt-sup:#ffffff;--pt-texto:#1d1f1f;--pt-paso:#111b21;--pt-tenue:rgba(0,0,0,.6);
+        --pt-borde:#1d1f1f;--pt-verde:#25d366;--pt-verde-tx:#1daa61;--pt-linea:#d1d7db;--pt-entrada:#fff;--pt-malo:#b42318;
+        --pt-papel:#efeae2;--pt-mia:#d9fdd3;--pt-otra:#fff}
+  :root[data-theme="dark"]{--pt-fondo:#161717;--pt-sup:#1d1f1f;--pt-texto:#e9edef;--pt-paso:#e9edef;--pt-tenue:rgba(255,255,255,.6);
+        --pt-borde:#3b3e3e;--pt-verde-tx:#21c063;--pt-linea:#3b3e3e;--pt-entrada:#161717;--pt-malo:#ff9a8f;
+        --pt-papel:#0b141a;--pt-mia:#005c4b;--pt-otra:#202c33}
+  .pt{position:fixed;inset:0;z-index:60;overflow:auto;background:var(--pt-fondo);color:var(--pt-texto);
+      font:16px/1 "Roboto Ensayo",Roboto,"Helvetica Neue",Helvetica,sans-serif;display:flex;flex-direction:column;align-items:center}
+  /* `hidden` pierde contra el display:flex de arriba: sin esta línea la
+     portada invisible seguiría delante tragándose los clics. */
+  .pt[hidden]{display:none}
+  /* Con la portada delante, lo de detrás (la pantalla de chats, más ancha que
+     un teléfono) no se pinta: si no, la página se desborda de lado. */
+  body.en-portada{height:auto;min-height:100vh;overflow:auto;display:block;background:var(--pt-fondo)}
+  body.en-portada > :not(#pantallaAcceso){display:none !important}
+  body.en-portada .pt{position:static;min-height:100vh;overflow:visible}
+  .pt-cab{align-self:stretch;display:flex;align-items:center;justify-content:space-between;padding:10px 40px 0;height:50px;box-sizing:border-box}
+  .pt-marca{display:flex;align-items:center;gap:8px;color:var(--pt-verde-tx);font-weight:500;font-size:17px;text-decoration:none;letter-spacing:-.01em}
+  .pt-marca .de{display:flex;align-items:center;gap:5px;color:var(--pt-tenue);font-size:12.5px;font-weight:400;margin-left:4px}
+  .pt-marca .de svg{width:15px;height:15px}
+  .pt-tema{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--pt-texto)}
+  .pt-tema:hover{background:rgba(0,0,0,.06)}
+  .pt-tarjeta{width:min(872px,calc(100% - 38px));box-sizing:border-box;background:var(--pt-sup);border:1px solid var(--pt-borde);border-radius:25px}
+  .pt-arriba{margin-top:44px;display:flex;align-items:center;gap:24px;padding:24px 48px 24px 50px;min-height:138px}
+  .pt-arriba svg.dibujo{flex:none;width:130px;height:88px}
+  .pt-arriba .txt{flex:1}
+  .pt-arriba b{display:block;font-size:18px;font-weight:500;line-height:24px}
+  .pt-arriba p{margin:4px 0 0;font-size:16px;line-height:20px}
+  .pt-boton{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:10px;height:52px;padding:0 28px;border-radius:26px;
+            background:var(--pt-verde);color:#1d1f1f;border:1px solid #1d1f1f;font-family:inherit;font-size:16px;font-weight:500;line-height:1;text-decoration:none;cursor:pointer}
+  .pt-boton:hover{filter:brightness(.96)}
+  .pt-boton svg{width:16px;height:16px}
+  .pt-principal{margin-top:16px;padding:48px 48px 44px 49px}
+  .pt-fila{display:flex;gap:40px;justify-content:space-between}
+  .pt h1{font-size:32px;font-weight:400;line-height:38px;margin:0 0 40px;letter-spacing:-.005em}
+  .pt-pasos{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:22px;position:relative}
+  .pt-pasos li{display:flex;gap:13px;align-items:flex-start;font-size:18px;line-height:24px;color:var(--pt-paso);position:relative}
+  .pt-pasos li:not(:last-child)::after{content:"";position:absolute;left:12px;top:25px;height:22px;border-left:1px solid var(--pt-paso)}
+  .pt-pasos .n{flex:none;width:24px;height:24px;border-radius:50%;border:1px solid var(--pt-paso);box-sizing:border-box;display:grid;place-items:center;font-size:14px}
+  .pt-pasos b{font-weight:500}
+  .pt-chip{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;background:var(--pt-verde);color:#fff;vertical-align:-5px;margin-left:4px}
+  .pt-chip svg{width:15px;height:15px}
+  .pt-enlace{display:inline-flex;align-items:center;gap:6px;font-size:16px;font-weight:500;color:var(--pt-texto);text-decoration:none;
+             border-bottom:2px solid var(--pt-verde);padding-bottom:2px;line-height:16px;cursor:pointer}
+  .pt-enlace svg{width:15px;height:15px}
+  .pt-ayuda{margin-top:26px}
+  /* En vez del QR: una muestra de cómo se ve el ensayo por dentro. */
+  .pt-muestra{flex:none;width:228px;height:228px;border-radius:12px;background:var(--pt-papel);overflow:hidden;position:relative;
+              display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:52px 12px 12px;box-sizing:border-box;font-size:12.5px;line-height:16px}
+  .pt-muestra .g{max-width:84%;padding:5px 8px 6px;border-radius:7.5px;box-shadow:0 1px .5px rgba(11,20,26,.13);color:var(--pt-texto)}
+  .pt-muestra .g.o{background:var(--pt-otra);align-self:flex-start;border-top-left-radius:0}
+  .pt-muestra .g.m{background:var(--pt-mia);align-self:flex-end;border-top-right-radius:0}
+  .pt-muestra .g small{display:block;text-align:right;font-size:11px;color:var(--pt-tenue);margin-top:2px}
+  .pt-muestra .quien{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--pt-sup);font-size:13.5px;font-weight:500}
+  .pt-muestra .quien i{width:24px;height:24px;border-radius:50%;background:#dfe5e7;display:grid;place-items:center;color:#8696a0}
+  .pt-muestra .quien i svg{width:15px;height:15px}
+  .pt-abajo{display:flex;justify-content:flex-end;margin-top:28px}
+  .pt-aviso{margin:-16px 0 28px;padding:12px 14px;border-radius:12px;background:#fff1cc;color:#5c3d00;font-size:15px;line-height:20px;display:flex;gap:9px;align-items:flex-start}
+  .pt-aviso:empty{display:none}
+  .pt-equipo{margin-top:16px;padding:32px 48px;display:flex;flex-direction:column;gap:12px}
+  .pt-equipo[hidden]{display:none}
+  .pt-equipo h3{margin:0;font-size:18px;font-weight:500}
+  .pt-equipo p{margin:0;font-size:15px;line-height:20px;color:var(--pt-tenue)}
+  .pt-equipo .campos{display:flex;gap:12px;flex-wrap:wrap}
+  .pt-equipo input{flex:1;min-width:200px;border:1px solid var(--pt-linea);border-radius:10px;padding:12px 14px;font:inherit;font-size:15px;
+                   background:var(--pt-entrada);color:var(--pt-texto)}
+  .pt-equipo .mal{color:var(--pt-malo);font-size:14px}
+  .pt-equipo .mal:empty{display:none}
+  .pt-pie1{margin-top:30px;font-size:18px;line-height:25px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;text-align:center;padding:0 16px}
+  .pt-pie2{margin-top:20px;font-size:16px;color:var(--pt-tenue);display:flex;gap:8px;align-items:center;text-align:center;padding:0 16px}
+  .pt-pie2 svg{flex:none;width:18px;height:18px}
+  .pt-pie3{margin:26px 0 30px;font-size:12px;color:var(--pt-tenue)}
+  .pt :focus-visible{outline:2px solid var(--pt-verde-tx);outline-offset:2px}
+  @media (max-width:760px){
+    .pt-cab{padding:10px 19px 0}
+    .pt-arriba{flex-wrap:wrap;padding:24px;gap:16px}
+    .pt-arriba svg.dibujo{display:none}
+    .pt-arriba .pt-boton{width:100%}
+    .pt-principal{padding:32px 24px}
+    .pt-fila{flex-direction:column-reverse;align-items:center;gap:32px}
+    .pt-fila > div:last-child{align-self:stretch}
+    .pt h1{font-size:28px;line-height:34px;margin-bottom:28px}
+    .pt-pasos li{font-size:17px}
+    .pt-abajo{justify-content:center;margin-top:32px}
+    .pt-equipo{padding:24px}
+  }
   .enlace{color:var(--verde-osc);text-decoration:underline;background:none;border:0;padding:0;
           font:inherit;cursor:pointer}
   dialog .mal{color:var(--malo);font-size:13px}
   dialog .mal:empty{display:none}
-  .puerta .alterna{font-size:12.5px;color:var(--tenue);text-decoration:underline;background:none;border:none;cursor:pointer;padding:0}
   /* Nada de anillo azul del sistema: WhatsApp no lo tiene. El foco de teclado
      (Tab) sí se marca, en verde, que para eso existe. */
   input:focus, textarea:focus, select:focus, button:focus{outline:none}
   input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible{
     outline:2px solid var(--verde); outline-offset:1px}
   #texto:focus-visible{outline:none}
-  .puerta .mal{color:#d33;font-size:13px;min-height:18px;margin:8px 0 4px}
   /* La administración: negocios y sus claves, nada de chats. */
   .admin{position:fixed;inset:0;z-index:55;background:var(--panel);overflow:auto;display:none}
   .admin.on{display:block}
@@ -473,7 +558,7 @@
       <input type="file" id="archivo" hidden>
       <button class="ico" id="bAdjuntar" data-tip="Foto, audio, video o documento"></button>
       <button class="ico" id="bCarrito" data-tip="Mandar un pedido del catálogo"></button>
-      <textarea id="texto" rows="1" placeholder="Escribe un mensaje  ·  Mayús+Enter para otra línea"></textarea>
+      <textarea id="texto" rows="1" placeholder="Escribe un mensaje"></textarea>
       <button class="ico" id="bEnviar" data-tip="Enviar" style="color:var(--verde-osc)"></button>
     </div>
   </section>
@@ -606,33 +691,68 @@
 </dialog>
 
 
-<!-- La puerta. Cada negocio entra con SU clave; la de administración abre la
-     gestión de negocios y nada más. -->
-<div class="puerta" id="pantallaAcceso" hidden>
-  <div class="tarjeta">
-    <h2>Ensayo de WhatsApp</h2>
-    <p>Un WhatsApp de mentira para probar tu plataforma: clientes falsos, errores a
-      voluntad, y nada sale a un teléfono real.</p>
-    <div id="accesoEntrar" style="display:flex;flex-direction:column;gap:10px">
-      <input id="entEmail" type="email" placeholder="Tu email" autocomplete="email">
-      <input id="entPassword" type="password" placeholder="Tu contraseña" autocomplete="current-password">
-      <div class="mal" id="entError"></div>
-      <button class="btn" id="bEntrarCuenta" style="width:100%">Entrar</button>
-      <button id="irARegistro" class="alterna">¿No tienes cuenta? Créala aquí</button>
-    </div>
-    <div id="accesoRegistro" style="display:none;flex-direction:column;gap:10px">
-      <input id="regNombre" placeholder="Nombre de tu negocio (lo verán tus clientes de prueba)">
-      <input id="regEmail" type="email" placeholder="Tu email" autocomplete="email">
-      <input id="regPassword" type="password" placeholder="Una contraseña (mínimo 6)" autocomplete="new-password">
-      <div class="mal" id="regError"></div>
-      <button class="btn" id="bCrearCuenta" style="width:100%">Crear mi cuenta</button>
-      <button id="irAEntrar" class="alterna">Ya tengo cuenta</button>
-    </div>
-    <!-- El camino de las claves NO se enseña: quien administra entra con
-         «?clave=…» en la dirección, y quien viene a probar su agente no tiene
-         por qué enterarse de que existen claves. -->
+<!-- La portada. Sin clave no se ve ningún chat. Imita la pantalla de entrada
+     de WhatsApp Web, pero en vez del QR explica el camino de verdad: se abre
+     desde RunOp AI con su botón «WhatsApp de prueba» (enlace /?clave=…, que
+     entra directo). No hay registro: las cuentas nacen solo por
+     POST /panel/ensayo. La entrada del equipo (correo y contraseña) queda
+     discreta para las cuentas que ya existían; la administración sigue con
+     /?clave=<clave de administración>. -->
+<section class="pt" id="pantallaAcceso" hidden>
+  <header class="pt-cab">
+    <span class="pt-marca"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M12 2.5c-5.5 0-9.5 3.8-9.5 8.6 0 2.6 1.2 4.9 3.2 6.5l-.9 3.6 4.1-2.1c1 .3 2 .4 3.1.4 5.5 0 9.5-3.8 9.5-8.5S17.5 2.5 12 2.5z"/></svg>Ensayo de WhatsApp<span class="de">de <svg viewBox="0 0 240 240" aria-hidden="true"><rect width="240" height="240" rx="54" fill="#b7ff27"/><g transform="rotate(-35 120 120)"><rect x="46" y="78" width="148" height="84" rx="42" fill="none" stroke="#0b0b0b" stroke-width="30"/></g></svg>RunOp AI</span></span>
+    <button class="pt-tema" id="ptTema" type="button" aria-label="Cambiar a oscuro"></button>
+  </header>
+
+  <div class="pt-tarjeta pt-arriba">
+    <svg class="dibujo" viewBox="0 0 130 88" fill="none" stroke="#1d1f1f" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+      <rect x="10" y="4" width="110" height="70" rx="5" fill="#fcf5eb"/><rect x="10" y="4" width="36" height="70" rx="5" fill="#25d366"/>
+      <path d="M2 74h126l-6 10H8z" fill="#e7fce3"/><path d="M18 20h20M18 30h20M18 40h14" stroke="#1d1f1f"/>
+      <path d="M60 22h44a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H70l-8 6v-6h-2a5 5 0 0 1-5-5V27a5 5 0 0 1 5-5z" fill="#fff"/>
+      <path d="M66 50h34a5 5 0 0 1 5 5v4a5 5 0 0 1-5 5h-1v5l-7-5H66a5 5 0 0 1-5-5v-4a5 5 0 0 1 5-5z" fill="#d9fdd3"/>
+    </svg>
+    <div class="txt"><b>Se abre desde RunOp AI</b>
+      <p>El número de prueba se crea en tu cuenta de RunOp AI, en la web o en la app, y queda conectado a tu agente.</p></div>
+    <a class="pt-boton" href="https://runop.ai/login">Entrar a RunOp AI <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
   </div>
-</div>
+
+  <div class="pt-tarjeta pt-principal">
+    <div class="pt-aviso" id="ptAviso" role="alert"></div>
+    <div class="pt-fila">
+      <div>
+        <h1>Ensaya con un cliente de prueba</h1>
+        <ol class="pt-pasos">
+          <li><span class="n">1</span><span>Entra a RunOp AI en la web o en la app.</span></li>
+          <li><span class="n">2</span><span>Toca <b>WhatsApp de prueba</b><span class="pt-chip"><svg viewBox="0 0 24 24"  fill="currentColor" aria-hidden="true"><path d="M12 2.5c-5.5 0-9.5 3.8-9.5 8.6 0 2.6 1.2 4.9 3.2 6.5l-.9 3.6 4.1-2.1c1 .3 2 .4 3.1.4 5.5 0 9.5-3.8 9.5-8.5S17.5 2.5 12 2.5z"/></svg></span>.</span></li>
+          <li><span class="n">3</span><span>Escríbele a tu agente como si fueras un cliente.</span></li>
+        </ol>
+        <div class="pt-ayuda"><a class="pt-enlace" href="https://runop.ai/login">Ir a RunOp AI <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a></div>
+      </div>
+      <div class="pt-muestra" aria-hidden="true">
+        <div class="quien"><i><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8.5" r="4.2"/><path d="M3.8 21c.8-4.4 4.1-6.8 8.2-6.8s7.4 2.4 8.2 6.8z"/></svg></i>Tu agente</div>
+        <div class="g m">Hola, ¿tienen delivery?<small>10:41</small></div>
+        <div class="g o">Sí, hacemos entregas. ¿A qué sector sería?<small>10:41</small></div>
+        <div class="g m">Piantini<small>10:42</small></div>
+      </div>
+    </div>
+    <div class="pt-abajo"><button class="pt-enlace" id="bEquipo" type="button" style="background:none;border-top:0;border-left:0;border-right:0">Entrada del equipo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></div>
+  </div>
+
+  <form class="pt-tarjeta pt-equipo" id="ptEquipo" hidden>
+    <h3>Entrada del equipo</h3>
+    <p>Solo para cuentas que ya tienen correo y contraseña. Las nuevas se crean desde RunOp AI.</p>
+    <div class="campos">
+      <input id="entEmail" type="email" placeholder="Correo" autocomplete="email" aria-label="Correo">
+      <input id="entPassword" type="password" placeholder="Contraseña" autocomplete="current-password" aria-label="Contraseña">
+    </div>
+    <div class="mal" id="entError" role="alert"></div>
+    <div><button class="pt-boton" id="bEntrarCuenta" type="submit">Entrar</button></div>
+  </form>
+
+  <div class="pt-pie1">¿Todavía no usas RunOp AI? <a class="pt-enlace" href="https://runop.ai">Conócelo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a></div>
+  <div class="pt-pie2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>Nada de lo que escribas aquí le llega a un teléfono real.</div>
+  <div class="pt-pie3">Un espacio de ensayo de RunOp AI</div>
+</section>
 
 <div class="admin" id="pantallaAdmin">
   <div class="caja">
@@ -829,6 +949,7 @@ const svg = (d, o = {}) =>
 const IC = {
   tic:     () => svg('<path d="m4.5 12.5 5 5 10-11"/>'),
   flecha:  () => svg('<path d="m6 9 6 6 6-6"/>'),
+  derecha: () => svg('<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>', { t: 18 }),
   papelera:() => svg('<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>'),
   luna:    () => svg('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'),
   sol:     () => svg('<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>'),
@@ -1596,26 +1717,26 @@ setInterval(() => { if (MODO === 'negocio' && est.numero) { cargarClientes(); ca
 setInterval(() => { if (MODO === 'negocio') cargarPlantillas(); }, 30000);
 
 /**
- * El tema. Por defecto, el del sistema: no se marca nada en la raíz y manda
- * `prefers-color-scheme`. En cuanto eliges, se marca y se recuerda.
+ * El tema. Claro por defecto y oscuro solo si se pide a mano: no se sigue al
+ * sistema operativo. La raíz siempre lleva la marca (la pone el <head> antes
+ * de pintar), así el bloque de `prefers-color-scheme` nunca manda.
  */
+const temaGuardado = () => { try { return localStorage.getItem('wa-sandbox-tema') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; } };
 function pintarTema() {
-  const g = (() => { try { return localStorage.getItem('wa-sandbox-tema'); } catch { return null; } })();
-  if (g) document.documentElement.setAttribute('data-theme', g);
-  else document.documentElement.removeAttribute('data-theme');
-  const oscuro = g ? g === 'dark'
-    : matchMedia('(prefers-color-scheme: dark)').matches;
+  const t = temaGuardado();
+  document.documentElement.setAttribute('data-theme', t);
+  const oscuro = t === 'dark';
   $('#bTema').innerHTML = oscuro ? IC.sol({ t: 19 }) : IC.luna({ t: 19 });
   if ($('#bTema2')) $('#bTema2').innerHTML = oscuro ? IC.sol() : IC.luna();
+  $('#ptTema').innerHTML = oscuro ? IC.sol({ t: 18 }) : IC.luna({ t: 18 });
   $('#bTema').dataset.tip = oscuro ? 'Cambiar a claro' : 'Cambiar a oscuro';
+  $('#ptTema').setAttribute('aria-label', oscuro ? 'Cambiar a claro' : 'Cambiar a oscuro');
 }
 $('#bTema').onclick = () => {
-  const oscuroAhora = document.documentElement.getAttribute('data-theme') === 'dark'
-    || (!document.documentElement.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
-  try { localStorage.setItem('wa-sandbox-tema', oscuroAhora ? 'light' : 'dark'); } catch { /* da igual */ }
+  try { localStorage.setItem('wa-sandbox-tema', temaGuardado() === 'dark' ? 'light' : 'dark'); } catch { /* da igual */ }
   pintarTema();
 };
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', pintarTema);
+$('#ptTema').onclick = () => $('#bTema').click();
 pintarTema();
 
 /* Los iconos del HTML se rellenan aquí: así viven en un solo sitio. */
@@ -1643,8 +1764,13 @@ async function entrarCon(clave) {
   const r = clave ? await fetch('/panel/quien', { headers: { 'x-clave': clave } }) : null;
   if (!r || !r.ok) {
     $('#pantallaAcceso').hidden = false;
-    if (clave) $('#entError').textContent = 'Esa clave no abre nada. Revísala.';
-    setTimeout(() => $('#entEmail').focus(), 50);
+    document.body.classList.add('en-portada');
+    /* Un enlace viejo (el ensayo se borró, o la clave se giró): se dice qué
+       pasó y por dónde se vuelve, en vez de enseñar un formulario. */
+    if (clave) try { localStorage.removeItem('wa-sandbox-clave'); } catch { /* da igual */ }
+    if (clave && clave === claveEnUrl) {
+      $('#ptAviso').innerHTML = IC.alerta({ t: 18 }) + '<span>Este enlace ya no abre ningún ensayo. Vuelve a abrirlo desde RunOp AI con el botón «WhatsApp de prueba».</span>';
+    }
     return;
   }
   const q = await r.json();
@@ -1653,6 +1779,7 @@ async function entrarCon(clave) {
   CLAVE = clave;
   try { localStorage.setItem('wa-sandbox-clave', clave); } catch { /* da igual */ }
   $('#pantallaAcceso').hidden = true;
+  document.body.classList.remove('en-portada');
   if (q.admin) {
     MODO = 'admin';
     $('#pantallaAdmin').classList.add('on');
@@ -1670,44 +1797,38 @@ async function arrancar() {
   await cargarNegocios(); await cargarEventos(); await cargarProductos();
   if (!est.cuentas.length) pedirNegocio({ conectar: false });
   else if (!est.cuenta?.webhook_url) pedirNegocio({ conectar: true });
+  /* Llegó por el enlace de una plataforma (el «número de prueba con un
+     botón»): si hay un solo cliente —el «Cliente de prueba» que trae el
+     ensayo—, su chat se abre ya, listo para escribir. */
+  else if (claveEnUrl && !est.cliente && est.clientes?.length === 1) await abrir(est.clientes[0]);
 }
 
 const salir = () => { try { localStorage.removeItem('wa-sandbox-clave'); } catch { /* da igual */ } location.reload(); };
 $('#bSalir').onclick = salir;
 $('#bSalirAdmin').onclick = salir;
-/* Autoservicio con cuentas del propio sandbox: entrar y registrarse. La clave
-   sb_… sigue siendo lo que aísla por debajo, pero el usuario nunca la ve. */
-async function puerta(ruta, cuerpo, errorEn, boton) {
-  $(boton).disabled = true;
-  try {
-    const r = await fetch(ruta, { method: 'POST',
-      headers: { 'content-type': 'application/json' }, body: JSON.stringify(cuerpo) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) { $(errorEn).textContent = j.error || 'No se pudo.'; return; }
-    $(errorEn).textContent = '';
-    await entrarCon(j.clave);
-  } finally { $(boton).disabled = false; }
-}
-const entrarConCuenta = () => {
+/* La entrada del equipo: correo y contraseña de las cuentas que ya existían.
+   Registrarse ya no se puede (las cuentas nacen desde RunOp AI). La clave
+   sb_… sigue siendo lo que aísla por debajo, pero nadie la ve. */
+async function entrarConCuenta(e) {
+  e?.preventDefault();
   const email = $('#entEmail').value.trim(), password = $('#entPassword').value;
-  if (!email || !password) { $('#entError').textContent = 'Pon tu email y tu contraseña.'; return; }
-  puerta('/panel/entrar', { email, password }, '#entError', '#bEntrarCuenta');
+  if (!email || !password) { $('#entError').textContent = 'Pon tu correo y tu contraseña.'; return; }
+  $('#bEntrarCuenta').disabled = true;
+  try {
+    const r = await fetch('/panel/entrar', { method: 'POST',
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { $('#entError').textContent = j.error || 'No se pudo entrar.'; return; }
+    $('#entError').textContent = '';
+    await entrarCon(j.clave);
+  } finally { $('#bEntrarCuenta').disabled = false; }
+}
+$('#ptEquipo').onsubmit = entrarConCuenta;
+$('#bEquipo').onclick = () => {
+  const f = $('#ptEquipo');
+  f.hidden = !f.hidden;
+  if (!f.hidden) { f.scrollIntoView({ block: 'nearest' }); $('#entEmail').focus(); }
 };
-const registrarse = () => {
-  const nombre = $('#regNombre').value.trim(), email = $('#regEmail').value.trim(), password = $('#regPassword').value;
-  if (!nombre || !email || !password) { $('#regError').textContent = 'Llena los tres campos.'; return; }
-  puerta('/panel/registrar', { nombre, email, password }, '#regError', '#bCrearCuenta');
-};
-$('#bEntrarCuenta').onclick = entrarConCuenta;
-$('#entPassword').onkeydown = (e) => { if (e.key === 'Enter') entrarConCuenta(); };
-$('#bCrearCuenta').onclick = registrarse;
-$('#regPassword').onkeydown = (e) => { if (e.key === 'Enter') registrarse(); };
-const ensenar = (cual) => {
-  $('#accesoEntrar').style.display = cual === 'entrar' ? 'flex' : 'none';
-  $('#accesoRegistro').style.display = cual === 'registro' ? 'flex' : 'none';
-};
-$('#irARegistro').onclick = () => { ensenar('registro'); $('#regNombre').focus(); };
-$('#irAEntrar').onclick = () => { ensenar('entrar'); $('#entEmail').focus(); };
 
 /* ── Administración: los negocios y sus claves ── */
 async function cargarNegociosAdmin() {

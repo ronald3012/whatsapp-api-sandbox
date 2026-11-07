@@ -44,10 +44,13 @@ npm start                 # http://localhost:8095
 La primera vez se crea la base (`datos/sandbox.db`) y una clave de
 administración en `datos/admin.clave`.
 
-Abre `http://localhost:8095`, crea tu cuenta con email y contraseña, y ya
-tienes tu primer negocio de ensayo con su número.
-
-![La puerta: entrar o crear la cuenta](docs/entrar.png)
+**Desde el 6 nov 2026 el sandbox es exclusivo de RunOp AI.** No hay registro
+público: los negocios de ensayo nacen con `POST /panel/ensayo` (el botón
+«WhatsApp de prueba» de RunOp AI) y se entra con su enlace `/?clave=…`, que abre
+directo el chat del «Cliente de prueba». La portada (`/`) imita la entrada de
+WhatsApp Web y manda a RunOp AI. La administración entra con
+`/?clave=<clave de administración>`; las cuentas viejas con correo y contraseña,
+por la «Entrada del equipo» de la portada. `POST /panel/registrar` responde 410.
 
 ## Conectar tu plataforma
 
@@ -131,8 +134,8 @@ calificación de calidad del número, los límites por reputación—.
 
 ## Cuentas y aislamiento
 
-Cada quien se registra solo (nombre del negocio, email y contraseña) y su
-entorno nace con él. **Un negocio solo ve lo suyo**: el dueño sale de la clave
+Los negocios nacen desde RunOp AI (`POST /panel/ensayo`) o los crea la
+administración; ya no hay registro público. **Un negocio solo ve lo suyo**: el dueño sale de la clave
 de sesión, nunca de un parámetro que mande el navegador, y todas las consultas
 filtran por él.
 
