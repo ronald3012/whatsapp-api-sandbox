@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Sandbox QR</title>
 <style>
 :root {
@@ -190,6 +190,16 @@ dialog .acciones { display: flex; gap: 8px; justify-content: flex-end; margin-to
   .msg { max-width: 85%; }
   .redactar { padding: 5px 8px 8px; }
   .redactar .opciones { padding-left: 0; }
+  /* iOS acerca la página al tocar un campo de menos de 16 px; `--alto` lo pone
+     el visualViewport de abajo, porque el teclado no encoge el 100dvh. */
+  input, select, textarea { font-size: 16px; }
+  .ico { width: 44px; height: 44px; }
+  .buscar label { height: 44px; }
+  .filtros button { min-height: 40px; }
+  aside, main { min-width: 0; }
+  .app { grid-template-columns: minmax(0, 1fr); height: var(--alto, 100dvh); padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px); }
+  .redactar { padding-bottom: calc(8px + var(--abajo, env(safe-area-inset-bottom, 0px))); }
+  .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 }
 dialog.visor { width: 100vw; height: 100dvh; max-width: none; max-height: none; padding: 0; margin: 0; border-radius: 0; background: rgba(11,20,26,.94); display: none; }
 dialog.visor[open] { display: grid; grid-template-rows: auto 1fr; }
@@ -1031,6 +1041,21 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", pintarBo
 cargar();
 conectarEventos();
 setInterval(cargar, 20000);
+</script>
+<script>
+/* El teclado de iPhone tapa la página sin encogerla: se ajusta a lo que se ve. */
+(() => {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const r = document.documentElement, movil = matchMedia('(max-width: 760px)');
+  const ajustar = () => {
+    if (!movil.matches || vv.scale > 1.02) return;
+    r.style.setProperty('--alto', Math.round(vv.height) + 'px');
+    r.style.setProperty('--abajo', window.innerHeight - vv.height > 120 ? '0px' : 'env(safe-area-inset-bottom, 0px)');
+    if (vv.offsetTop > 0) window.scrollTo(0, 0);
+  };
+  vv.addEventListener('resize', ajustar); vv.addEventListener('scroll', ajustar); ajustar();
+})();
 </script>
 </body>
 </html>

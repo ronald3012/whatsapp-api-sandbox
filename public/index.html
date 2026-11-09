@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Ensayo de WhatsApp · RunOp AI</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='240' height='240' rx='54' fill='%23b7ff27'/%3E%3Cg transform='rotate(-35 120 120)'%3E%3Crect x='46' y='78' width='148' height='84' rx='42' fill='none' stroke='%230b0b0b' stroke-width='30'/%3E%3C/g%3E%3C/svg%3E">
 <script>
@@ -475,14 +475,180 @@
   .admin .clave{font:12px/1.4 ui-monospace,Menlo,monospace;background:var(--panel);
     border:1px solid var(--linea2);border-radius:6px;padding:4px 8px;cursor:pointer;user-select:all;
     overflow-wrap:anywhere}
+  /* ══ En el teléfono ══
+     Una sola cosa a la vez, como WhatsApp en un móvil: la lista, y al tocar un
+     chat la conversación con su flecha de volver. Manda `body[data-pantalla]`
+     (lista · chat · lupa), que pone el código. Todo vive dentro de este bloque:
+     por encima de ese ancho, la pantalla es la de siempre.
+
+     La altura sale de `--alto` (visualViewport, ver «El teclado» en el código):
+     con 100vh las barras del navegador tapaban lo de abajo, y el teclado de
+     iPhone se pone encima de la página sin encogerla. Los teléfonos acostados
+     entran por el segundo media query: son anchos, pero muy bajitos. */
+  .volver,.solo-tel,.menu button.solo-tel{display:none}
+  @media (max-width:760px),(pointer:coarse) and (max-height:500px){
+    :root{--abajo:env(safe-area-inset-bottom,0px);--arriba:env(safe-area-inset-top,0px)}
+    :root[data-teclado]{--abajo:0px}
+    html{-webkit-text-size-adjust:100%}
+    button,a,label,.chat,.neg,[role=button]{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    body:not(.en-portada){position:fixed;top:0;left:0;right:0;height:var(--alto,100dvh);
+      padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+    /* Sin esto, iOS acerca la página al tocar cualquier campo de menos de 16 px. */
+    input,select,textarea,#texto,.buscar input,.pt-equipo input{font-size:16px}
+    /* Los globitos son de ratón: en un teléfono el toque los deja pegados. */
+    [data-tip]::after{display:none}
+    .volver{display:grid}
+    .solo-tel,.menu button.solo-tel{display:flex}
+    .ico{width:44px;height:44px}
+    .btn{min-height:44px}
+    .btn.mini{min-height:40px}
+    .ric.solo-tel{display:flex}
+
+    /* La cabecera: una sola fila, clara como la barra de WhatsApp en el móvil.
+       Título corto a la izquierda, el negocio en su selector y el «+». La frase
+       de estado, el aviso de ensayo y salir viven en el desplegable del negocio;
+       aquí el estado es solo el punto sobre su avatar, salvo si hay un fallo. */
+    .franja{display:grid;height:auto;gap:0 10px;align-items:center;background:var(--superficie);color:var(--texto);
+      grid-template-columns:auto minmax(0,1fr) 44px;grid-template-areas:"lo ne ." "sl sl sl";
+      padding:calc(6px + var(--arriba)) 4px 6px 16px;border-bottom:1px solid var(--linea)}
+    .franja .logo{grid-area:lo;font-size:21px;font-weight:600;line-height:1;color:var(--pt-verde-tx);letter-spacing:-.01em}
+    .logo-resto,.franja .lema,#punto,#bTema,#bSalir,.franja .sw{display:none}
+    .franja .der{display:contents}
+    .franja .neg,.franja .neg:hover{grid-area:ne;justify-self:end;position:relative;display:flex;max-width:100%;min-width:0;
+      height:40px;gap:8px;padding:0 10px 0 5px;background:var(--panel);font-size:14.5px;font-weight:500}
+    .franja .neg .av{width:30px;height:30px;font-size:11.5px;background:var(--verde-osc);color:#fff;flex:none}
+    #negNombre{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+    #negFlecha{flex:none;color:var(--tenue)}
+    /* El punto, en la esquina del avatar: gris sin actividad, verde recibiendo, rojo si falla. */
+    .franja .neg::before{content:"";position:absolute;z-index:1;left:27px;bottom:5px;width:10px;height:10px;border-radius:50%;
+      background:var(--debil);box-shadow:0 0 0 2px var(--panel)}
+    .franja:has(.punto.ok) .neg::before{background:#25d366}
+    .franja:has(.punto.mal) .neg::before{background:var(--malo)}
+    #saludTexto{display:none}
+    .franja:has(.punto.mal) #saludTexto{grid-area:sl;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
+      color:var(--malo);font-size:13px;line-height:1.3;margin:6px 12px 2px 0}
+    /* El «+» sube a la cabecera, como en WhatsApp; la fila «Chats» ya la dice la pestaña de abajo. */
+    .lista .cab{display:contents}
+    .lista .cab .tit{display:none}
+    #bNuevoCliente{position:fixed;z-index:5;top:calc(var(--arriba) + 4px);right:calc(env(safe-area-inset-right,0px) + 4px);color:var(--texto)}
+    .estado-menu{display:flex;gap:9px;align-items:flex-start;padding:11px 14px;font-size:13.5px;line-height:1.35;color:var(--texto)}
+    .estado-menu .punto{margin-top:6px;background:var(--debil)}
+    .estado-menu .punto.ok{background:#25d366}
+    .estado-menu .punto.mal{background:var(--malo)}
+    .nota-menu{padding:0 14px 11px 31px;font-size:12.5px;line-height:1.35;color:var(--tenue)}
+    .marca-menu{padding:8px 14px 10px;font-size:12px;color:var(--tenue)}
+    #menuNegocios{left:12px !important;right:12px !important;min-width:0;
+      max-height:calc(var(--alto,100dvh) - 110px);overflow-y:auto}
+    .fila-neg > button:first-child{min-height:52px;min-width:0}
+    .fila-neg .txt{min-width:0}
+    #menuNegocios .pie-menu{min-height:48px}
+    .menu button{min-height:46px}
+
+    /* Lo que antes eran columnas, ahora se turna. */
+    main,main.avanzado{display:flex;flex-direction:column;min-width:0}
+    .lista,.centro,.lupa{flex:1;min-height:0;min-width:0;border-left:0;border-right:0}
+    body:not([data-pantalla="chat"]) .centro{display:none}
+    body:not([data-pantalla="lupa"]) .lupa{display:none}
+    body[data-pantalla="chat"] :is(.lista,.riel),body[data-pantalla="lupa"] :is(.lista,.riel){display:none}
+    body[data-pantalla="chat"] .franja,body[data-pantalla="lupa"] .franja{display:none}
+    /* Dentro de un chat la franja se va, pero si tu agente no recibe hay que
+       decirlo ahí: es justo cuando estás esperando una respuesta que no viene. */
+    body[data-pantalla="chat"] .franja:has(.punto.mal){display:grid;grid-template-columns:minmax(0,1fr);
+      grid-template-areas:"sl";padding:calc(2px + var(--arriba)) 14px 4px}
+    body[data-pantalla="chat"] .franja:has(.punto.mal) :is(.logo,.neg){display:none}
+
+    /* El riel se vuelve la barra de abajo, como las pestañas del móvil. */
+    .riel{order:2;flex:none;width:auto;flex-direction:row;align-items:stretch;gap:0;
+      padding:0 0 var(--abajo);border-right:0;border-top:1px solid var(--costura)}
+    .riel > span[style],.riel .yo{display:none}
+    .ric{flex:1;width:auto;height:56px;border-radius:0;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:3px;min-width:0}
+    .ric:hover{background:none}
+    .ric.on{background:none;color:var(--fil-tx)}
+    .riel .ric[data-rotulo]::after{display:block;content:attr(data-rotulo);position:static;opacity:1;transform:none;
+      background:none;color:inherit;box-shadow:none;padding:0;font-size:11px;line-height:1.1;white-space:nowrap}
+    .riel .ric[data-rotulo]:hover::after{transform:none}
+
+    /* La lista. */
+    .buscar{padding:8px 12px;border-bottom:0}
+    .buscar input{padding:9px 14px}
+    .filtros{overflow-x:auto;scrollbar-width:none;padding-bottom:8px;border-bottom:1px solid var(--linea)}
+    .filtros::-webkit-scrollbar{display:none}
+    .fil{min-height:40px;padding:0 14px;white-space:nowrap;flex:none}
+    .chat{padding:11px 14px}
+
+    /* La conversación. */
+    .barra{height:auto;min-height:58px;padding:var(--arriba) 2px 0 2px;gap:6px;border-left:0}
+    .barra br{display:none}
+    .barra > span:not(.av):not(.der){flex:1;min-width:0}
+    .barra .quien,.barra .sub{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #chatSub::after{content:" · ensayo"}
+    .barra .der{margin-left:0;flex:none;gap:0}
+    .barra .der .menu{top:calc(100% - 4px);right:6px}
+    #bBuscarChat{display:none}
+    #hilo{padding:12px 10px 6px}
+    .b{max-width:85%;overflow-wrap:anywhere}
+    .b img{max-width:100%}
+    .b audio{width:min(230px,100%)}
+    .b video{max-width:100%}
+    .b .doc,.b .carro,.b .rota{min-width:0}
+    .aviso{max-width:100%}
+    .escribiendo{padding:0 12px 4px}
+    .redactar{padding:6px 4px calc(6px + var(--abajo));gap:0;align-items:flex-end}
+    #texto{min-width:0;padding:10px 14px;border-radius:22px;max-height:112px}
+
+    /* El verde oscuro no se lee sobre el tema oscuro. */
+    :root[data-theme="dark"] :is(.pest button.on,#credenciales button,label.c,.enlace){color:var(--fil-tx)}
+    :root[data-theme="dark"] #bEnviar{color:var(--verde) !important}
+
+    /* Las herramientas: una pantalla con su flecha. */
+    .lupa-cab{align-items:center;gap:6px;min-height:56px;padding:var(--arriba) 6px 0 2px;background:var(--panel);
+      font-size:17px;font-weight:500;flex-shrink:0}
+    .pest button{min-height:46px;font-size:13.5px}
+    .hoja{padding-bottom:calc(16px + var(--abajo))}
+    .op{padding:13px 12px}
+    #plantillas button{min-width:44px;min-height:44px;margin-left:0 !important}
+    #credenciales button{min-height:44px;padding:0 6px;flex:none}
+    .dato > span:first-child{min-width:0}
+    #armados [data-quitar]{min-height:40px;padding:0 6px}
+
+    /* Los diálogos, pegados arriba: centrados, el teclado les tapa los botones. */
+    dialog{margin:calc(10px + var(--arriba)) auto auto;width:calc(100vw - 20px);max-width:460px;
+      max-height:calc(var(--alto,100dvh) - 20px - var(--arriba))}
+    dialog[open]{display:flex;flex-direction:column}
+    dialog h3{flex:none;padding:16px 18px 12px}
+    dialog .in{flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 18px;-webkit-overflow-scrolling:touch}
+    dialog .out{flex:none;padding:14px 18px}
+    label.chk input{width:22px;height:22px;margin-top:0}
+    .neg-admin{flex-wrap:wrap}
+    .neg-admin .txt{flex:1 1 100%;min-width:0;overflow-wrap:anywhere}
+    .enlace{padding:6px 0}
+
+    /* La administración y la portada. */
+    .admin .caja{padding:calc(18px + var(--arriba)) 14px calc(30px + var(--abajo))}
+    .admin .caja > div[style*="flex"]{flex-wrap:wrap}
+    .admin .neg-fila .btn{flex:1 1 auto}
+    body.en-portada{min-height:100dvh}
+    body.en-portada .pt{min-height:100dvh}
+    .pt-cab{height:auto;padding-top:calc(8px + var(--arriba))}
+    .pt-marca{min-width:0;flex-wrap:wrap;font-size:16px}
+    .pt-tema{width:44px;height:44px;flex:none}
+    .pt-enlace{position:relative}
+    .pt-enlace::before{content:"";position:absolute;inset:-14px 0}
+    .pt-arriba{margin-top:20px}
+    .pt-equipo .campos{flex-direction:column}
+    .pt-equipo input{min-width:0;width:100%}
+    .pt-equipo .pt-boton{width:100%}
+    .pt-pie3{margin-bottom:calc(30px + var(--abajo))}
+  }
 </style>
 </head>
 <body>
 
 <div class="franja">
-  <span class="logo">Ensayo de WhatsApp</span>
+  <span class="logo">Ensayo<span class="logo-resto"> de WhatsApp</span></span>
   <!-- Siempre a la vista: es la tranquilidad que deja escribir sin miedo. -->
-  <span style="opacity:.75;font-size:12.5px">nada sale a un teléfono real</span>
+  <span class="lema" style="opacity:.75;font-size:12.5px">nada sale a un teléfono real</span>
   <span class="neg" id="selNegocio">
     <span class="av" id="negAv">—</span>
     <span id="negNombre">Sin negocio</span>
@@ -508,10 +674,11 @@
   <!-- El riel de iconos de WhatsApp Web. Aquí solo hay chats, así que el resto
        no se inventa: van el tema, los ajustes y el negocio, que sí existen. -->
   <nav class="riel">
-    <button class="ric on" data-tip="Chats" data-ic="chats"></button>
+    <button class="ric on" data-tip="Chats" data-rotulo="Chats" data-ic="chats"></button>
+    <button class="ric solo-tel" id="bHerramientas" data-rotulo="Herramientas" data-ic="herramientas" aria-label="Herramientas del ensayo"></button>
     <span style="flex:1"></span>
-    <button class="ric" id="bTema2" data-tip="Claro u oscuro"></button>
-    <button class="ric" id="bAjustes" data-tip="Ajustes de tu negocio de ensayo" data-ic="ajustes"></button>
+    <button class="ric" id="bTema2" data-tip="Claro u oscuro" data-rotulo="Tema" aria-label="Claro u oscuro"></button>
+    <button class="ric" id="bAjustes" data-tip="Ajustes de tu negocio de ensayo" data-rotulo="Ajustes" data-ic="ajustes" aria-label="Ajustes de tu negocio de ensayo"></button>
     <span class="yo" id="negAv2" data-tip="Cambiar de negocio de ensayo">—</span>
   </nav>
   <aside class="lista">
@@ -530,6 +697,7 @@
 
   <section class="centro vacio" id="centro">
     <div class="barra" id="barra" style="display:none">
+      <button class="ico volver" data-ic="atras" aria-label="Volver a los chats"></button>
       <span class="av" id="chatAv"></span>
       <span><span class="quien" id="chatNombre"></span><br><span class="sub" id="chatSub"></span></span>
       <span class="der">
@@ -537,6 +705,7 @@
         <button class="ico" id="bBuscarChat" data-tip="Buscar en la conversación" data-ic="lupa"></button>
         <button class="ico" id="bMasChat" data-tip="Más" data-ic="puntos"></button>
         <div class="menu" id="menuChat" style="display:none">
+          <button id="mHerramientas" class="solo-tel">Herramientas del ensayo</button>
           <button id="mFoto">Ponerle foto</button>
           <button id="mNombre">Cambiar el nombre</button>
           <button id="mVaciar">Vaciar la conversación</button>
@@ -564,6 +733,7 @@
   </section>
 
   <aside class="lupa">
+    <div class="lupa-cab solo-tel"><button class="ico volver" data-ic="atras" aria-label="Volver"></button>Herramientas del ensayo</div>
     <div class="pest">
       <button class="on" data-hoja="actividad">Actividad</button>
       <button data-hoja="fallos">Fallos</button>
@@ -773,6 +943,8 @@
 <script type="module">
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
+/* El mismo corte que el bloque «En el teléfono» del CSS. */
+const movil = matchMedia('(max-width:760px), (pointer:coarse) and (max-height:500px)');
 let CLAVE = (() => { try { return localStorage.getItem('wa-sandbox-clave') || ''; } catch { return ''; } })();
 const api = async (r, o) => (await fetch(r, {
   ...o, headers: { 'x-clave': CLAVE, ...(o?.body ? { 'content-type': 'application/json' } : {}) },
@@ -968,6 +1140,9 @@ const IC = {
   candado: () => svg('<rect x="4.5" y="10.5" width="15" height="10.5" rx="2.2"/><path d="M8 10.5V7.4a4 4 0 0 1 8 0v3.1"/>', { t: 14 }),
   rota:    () => svg('<rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M3 4.5l18 15"/>'),
   mas:     () => svg('<path d="M12 5.5v13M5.5 12h13"/>'),
+  salir:   () => svg('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>'),
+  atras:   () => svg('<path d="m15 5-7 7 7 7"/>', { t: 24 }),
+  herramientas: () => svg('<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1.5 14h5M9.5 8h5M17.5 16h5"/>'),
   chats:   () => svg('<path d="M20.5 11.5a8 8 0 0 1-11.6 7.1L3.5 20.5l1.9-5.3A8 8 0 1 1 20.5 11.5z"/>'),
   lupa:    () => svg('<circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4-4"/>'),
   puntos:  () => svg('<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>', { relleno: true }),
@@ -1020,6 +1195,18 @@ function pintarMenuNegocios() {
     <div class="sep"></div>
     <button class="pie-menu" id="mNuevoNegocio">${IC.mas({ t: 16 })} Crear otro negocio</button>
     <button class="pie-menu" id="mAdminNegocios">${IC.ajustes({ t: 16 })} Administrar negocios</button>`;
+  /* En el teléfono, lo que en escritorio va fijo en la franja. */
+  if (movil.matches) {
+    m.insertAdjacentHTML('afterbegin', `
+      <div class="estado-menu"><span class="${$('#punto').className}"></span><span>${esc($('#saludTexto').textContent)}</span></div>
+      <div class="nota-menu">Nada sale a un teléfono real.</div>
+      <div class="sep"></div>`);
+    m.insertAdjacentHTML('beforeend', `
+      <button class="pie-menu" id="mSalir">${IC.salir({ t: 16 })} Salir</button>
+      <div class="sep"></div>
+      <div class="marca-menu">Un espacio de ensayo de RunOp AI</div>`);
+    $('#mSalir').onclick = () => $('#bSalir').click();
+  }
 
   m.querySelectorAll('[data-usar]').forEach((b) => b.onclick = () => {
     est.cuenta = est.cuentas.find((x) => x.id === b.dataset.usar);
@@ -1090,6 +1277,7 @@ $('#selNegocio').onclick = (e) => {
   pintarMenuNegocios();
   const r = $('#selNegocio').getBoundingClientRect();
   m.style.left = r.left + 'px';
+  if (movil.matches) m.style.top = (r.bottom + 6) + 'px';   // la franja crece en el teléfono
   m.style.display = 'block';
 };
 document.addEventListener('click', (e) => {
@@ -1151,7 +1339,38 @@ function cerrarChat() {
   $('#escribiendo').style.display = 'none'; $('#centro').classList.add('vacio');
   $('#hilo').innerHTML = `<div class="bienvenida"><h3>Ensaya tu agente</h3>
     <p>Escríbele como si fueras un cliente y mira exactamente qué contestaría en WhatsApp.</p></div>`;
+  if (document.body.dataset.pantalla === 'chat') ponerPantalla('lista');
 }
+
+/**
+ * Qué pantalla se ve en un teléfono: `lista`, `chat` o `lupa`.
+ *
+ * Cada paso adentro entra en el historial, para que el gesto de volver de iOS
+ * y el botón atrás del navegador hagan lo mismo que la flecha, en vez de
+ * sacarte del ensayo. En escritorio no se apila nada: ahí las columnas se ven
+ * todas a la vez.
+ */
+function ponerPantalla(p) {
+  if (p === 'chat' && !est.cliente) p = 'lista';
+  document.body.dataset.pantalla = p;
+}
+function irAPantalla(p) {
+  ponerPantalla(p);
+  if (movil.matches && p !== 'lista' && history.state?.pantalla !== p) history.pushState({ pantalla: p }, '');
+}
+/* Salir del chat es soltarlo: con el cliente puesto, lo que llegue después se
+   contaría como visto y su globo verde no saldría nunca en la lista. */
+function soltarChat() { est.cliente = null; cerrarChat(); pintarChats(); }
+function volverAtras() {
+  if (history.state?.pantalla) return history.back();
+  if (est.cliente) soltarChat(); else ponerPantalla('lista');
+}
+$$('.volver').forEach((b) => (b.onclick = volverAtras));
+addEventListener('popstate', (e) => {
+  const p = e.state?.pantalla || 'lista';
+  if (p === 'lista' && est.cliente) soltarChat();
+  ponerPantalla(p);
+});
 
 /* ── Clientes ── */
 /** Refresca UN chat de la lista: su último mensaje y su globo. */
@@ -1269,13 +1488,15 @@ async function abrir(k) {
   $('#centro').classList.remove('vacio');
   $('#barra').style.display = 'flex'; $('#redactar').style.display = 'flex';
   $('#escribiendo').style.display = 'block';
+  irAPantalla('chat');
   $('#chatAv').innerHTML = caraDe(k);
   $('#chatNombre').textContent = k.nombre;
   $('#chatSub').textContent = k.user_id ? `@${k.username} · sin enseñar su número` : `+${k.wa_id}`;
   firmaPintada = ''; $('#hilo').dataset.pintado = '';   // hilo nuevo: se pinta entero
   pintarChats(); await cargarHilo(); await cargarArmados();
   $('#hilo').scrollTop = $('#hilo').scrollHeight;
-  $('#texto').focus();
+  /* En el teléfono no: abrir un chat no debe sacar el teclado de golpe. */
+  if (!movil.matches) $('#texto').focus();
 }
 
 /* ── El hilo ── */
@@ -1294,7 +1515,7 @@ function contenido(m) {
   const cap = m.texto ? `<div>${formatoWhatsApp(m.texto)}</div>` : '';
   if (m.tipo === 'image' && md.id)
     return `<img src="${src(md.id)}" alt="foto" loading="lazy"
-      onerror="this.outerHTML='&lt;div class=\\'rota\\'&gt;🖼 no se pudo cargar la foto&lt;/div&gt;'">${cap}`;
+      onerror="this.outerHTML='&lt;div class=\\'rota\\'&gt;'+window.__iconoRota+' no se pudo cargar la foto&lt;/div&gt;'">${cap}`;
   if (m.tipo === 'audio' && md.id)    return `<audio controls preload="metadata" src="${src(md.id)}"></audio>${cap}`;
   if (m.tipo === 'video' && md.id)    return `<video controls src="${src(md.id)}"></video>${cap}`;
   if (m.tipo === 'document' && md.id) return `<a class="doc" href="${src(md.id)}" target="_blank" rel="noreferrer">${IC.archivo()} ${esc(md.filename || 'archivo')}</a>${cap}`;
@@ -1411,10 +1632,13 @@ const enviar = async () => {
   await cargarHilo(); await cargarEventos(); cargarClientes();
 };
 $('#bEnviar').onclick = enviar;
+/* Que tocar «enviar» no le quite el foco a la caja: el teclado se cerraría. */
+$('#bEnviar').addEventListener('mousedown', (e) => { if (movil.matches) e.preventDefault(); });
 /* Enter manda, Mayús+Enter salta de línea. Al revés —o sin salto— no se puede
-   escribir una lista, que es la mitad de lo que manda un agente. */
+   escribir una lista, que es la mitad de lo que manda un agente. En el teléfono
+   el salto de línea es Enter y se manda con el botón, como en WhatsApp. */
 $('#texto').onkeydown = (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); }
+  if (e.key === 'Enter' && !e.shiftKey && !movil.matches) { e.preventDefault(); enviar(); }
 };
 $('#texto').oninput = () => {
   const t = $('#texto');
@@ -1429,6 +1653,9 @@ $('#bLeer').onclick = async () => {
 $('#bMasChat').onclick = (e) => { e.stopPropagation(); const m = $('#menuChat');
   m.style.display = m.style.display === 'none' ? 'block' : 'none'; };
 document.addEventListener('click', () => { $('#menuChat').style.display = 'none'; });
+const abrirHerramientas = () => { $('#swAvanzado').checked = true; aplicarAvanzado(); irAPantalla('lupa'); };
+$('#bHerramientas').onclick = abrirHerramientas;
+$('#mHerramientas').onclick = abrirHerramientas;
 $('#mFoto').onclick = () => $('#fotoContacto').click();
 $('#fotoContacto').onchange = async () => {
   const f = $('#fotoContacto').files[0];
@@ -1497,7 +1724,7 @@ document.addEventListener('click', (e) => {
 $('#bCarrito').onclick = async () => {
   if (!est.cliente) return;
   const ps = await api(`/panel/cuentas/${est.cuenta.id}/productos`);
-  if (!ps.length) { $('#swAvanzado').checked = true; aplicarAvanzado(); irA('tienda'); dProducto.showModal(); return; }
+  if (!ps.length) { abrirHerramientas(); irA('tienda'); dProducto.showModal(); return; }
   $('#listaCarrito').innerHTML = ps.map((p) => `<label class="chk"><input type="checkbox" value="${esc(p.retailer_id)}">
     <span>${esc(p.nombre)} <span class="sku" style="font-family:var(--mono);font-size:11px">${esc(p.retailer_id)}</span>
     ${p.precio != null ? ' · RD$' + p.precio : ''}</span></label>`).join('');
@@ -1539,6 +1766,7 @@ function porQueNoLlega(u) {
     return 'ese webhook es de otro canal: copia las credenciales de ESTE negocio en tu plataforma';
   }
   if (u.estado === 404) return 'ese webhook no existe en tu plataforma: revisa la dirección';
+  if (/fetch failed/i.test(dice)) return 'no se pudo llegar a tu plataforma';
   if (!u.estado) return `no se pudo llegar a tu plataforma: ${dice.slice(0, 60)}`;
   return `no le llega a tu agente: respondió ${u.estado}`;
 }
@@ -1881,6 +2109,36 @@ $('#bAltaNegocio').onclick = async () => {
    limpia — que la clave no viva en el historial ni en un pantallazo. */
 const claveEnUrl = new URLSearchParams(location.search).get('clave');
 if (claveEnUrl) history.replaceState(null, '', location.pathname);
+
+/**
+ * El teclado. En iPhone se pone ENCIMA de la página sin encogerla y `100dvh` no
+ * se entera: la caja de escribir quedaba debajo. `visualViewport` sí sabe cuánto
+ * se ve de verdad, así que la pantalla se ajusta a eso.
+ */
+(() => {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const raiz = document.documentElement;
+  let tecladoAntes = false;
+  const ajustar = () => {
+    if (!movil.matches) { raiz.style.removeProperty('--alto'); raiz.removeAttribute('data-teclado'); return; }
+    if (vv.scale > 1.02) return;              // con los dedos acercando no es el teclado
+    raiz.style.setProperty('--alto', Math.round(vv.height) + 'px');
+    const teclado = window.innerHeight - vv.height > 120;
+    raiz.toggleAttribute('data-teclado', teclado);
+    if (vv.offsetTop > 0) window.scrollTo(0, 0);
+    if (teclado && !tecladoAntes) {
+      if (est.cliente) { const h = $('#hilo'); h.scrollTop = h.scrollHeight; }
+      document.activeElement?.scrollIntoView?.({ block: 'nearest' });
+    }
+    tecladoAntes = teclado;
+  };
+  vv.addEventListener('resize', ajustar);
+  vv.addEventListener('scroll', ajustar);
+  movil.addEventListener('change', ajustar);
+  ajustar();
+})();
+
 entrarCon(claveEnUrl || CLAVE);
 </script>
 </body>
